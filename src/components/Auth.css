@@ -183,20 +183,20 @@
   color: rgba(255, 255, 255, 0.3);
 }
 
-.auth-form .form-message {
+.form-message {
   border-radius: 10px;
   padding: 12px;
   font-size: 13px;
   font-weight: 600;
 }
 
-.auth-form .form-error {
+.form-error {
   background: rgba(239, 68, 68, 0.15);
   border-left: 4px solid var(--danger);
   color: #FCA5A5;
 }
 
-.auth-form .form-success {
+.form-success {
   background: rgba(16, 185, 129, 0.15);
   border-left: 4px solid var(--success);
   color: #A7F3D0;
