@@ -35,7 +35,7 @@ const accountingLinks = [
   { to: '/settings', label: '⚙️ Settings', role: 'accountant' },
 ];
 
-function Sidebar() {
+function Sidebar({ onClose }) {
   const { userRole, canManageUsers } = useRole();
   const { user } = useUser();
   const levels = { admin: 3, accountant: 2, viewer: 1 };
@@ -51,6 +51,7 @@ function Sidebar() {
       key={l.to} 
       to={l.to} 
       className={({ isActive }) => isActive ? 'sidebar-link sidebar-link-active' : 'sidebar-link'}
+      onClick={onClose}
     >
       <span className="sidebar-link-icon">{l.label.substring(0, 2)}</span>
       <span className="sidebar-link-text">{l.label.substring(2)}</span>
@@ -109,6 +110,7 @@ function Sidebar() {
               <NavLink 
                 to="/team" 
                 className={({ isActive }) => isActive ? 'sidebar-link sidebar-link-active' : 'sidebar-link'}
+                onClick={onClose}
               >
                 <span className="sidebar-link-icon">👨‍💼</span>
                 <span className="sidebar-link-text">Team</span>
@@ -116,6 +118,7 @@ function Sidebar() {
               <NavLink 
                 to="/security" 
                 className={({ isActive }) => isActive ? 'sidebar-link sidebar-link-active' : 'sidebar-link'}
+                onClick={onClose}
               >
                 <span className="sidebar-link-icon">🛡️</span>
                 <span className="sidebar-link-text">Security</span>
@@ -126,7 +129,7 @@ function Sidebar() {
       </div>
 
       <div className="sidebar-footer-wrapper">
-        <button className="sidebar-logout" onClick={() => supabase?.auth.signOut()} type="button">
+        <button className="sidebar-logout" onClick={() => { onClose?.(); supabase?.auth.signOut(); }} type="button">
           🚪 Log out
         </button>
       </div>

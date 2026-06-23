@@ -39,6 +39,8 @@ function ProtectedRoute({ element, requiredRole }) {
 
 function AppShell() {
   const { loading } = useRole();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   if (loading) return <div className="loading-screen">Loading...</div>;
 
   const V = (el) => <ProtectedRoute element={el} requiredRole="viewer" />;
@@ -46,8 +48,22 @@ function AppShell() {
   const D = (el) => <ProtectedRoute element={el} requiredRole="admin" />;
 
   return (
-    <div className="app-shell">
-      <Sidebar />
+    <div className={`app-shell ${sidebarOpen ? 'sidebar-open' : ''}`}>
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* Floating Toggle Hamburger Menu */}
+      <button 
+        className="mobile-sidebar-toggle" 
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        aria-label="Toggle Sidebar Menu"
+      >
+        {sidebarOpen ? '✕' : '☰'}
+      </button>
+
+      <Sidebar onClose={() => setSidebarOpen(false)} />
       <main className="app-content">
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
