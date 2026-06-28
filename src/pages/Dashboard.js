@@ -32,10 +32,31 @@ function Dashboard() {
                    : 'year';
 
   const metrics = [
-    { icon: '📊', label: timeRange === 'today' ? 'Sales (Today)' : `Sales (this ${rangeLabel})`, value: fmt(stats?.totalSales || 0), note: `${stats?.monthInvoiceCount || 0} invoices`, trend: stats?.salesGrowth !== undefined ? (stats.salesGrowth >= 0 ? `+${stats.salesGrowth}%` : `${stats.salesGrowth}%`) : '+0%' },
-    { icon: '💰', label: timeRange === 'today' ? 'Received (Today)' : `Received (this ${rangeLabel})`, value: fmt(stats?.totalReceived || 0), note: 'Payments collected', trend: '+8%' },
-    { icon: '⏳', label: 'Pending', value: fmt(stats?.totalPending || 0), note: `${stats?.overdueInvoices?.length || 0} overdue`, trend: '-5%' },
-    { icon: '📉', label: timeRange === 'today' ? 'Expenses (Today)' : `Expenses (this ${rangeLabel})`, value: fmt(stats?.totalExpenses || 0), note: `Profit: ${fmt(stats?.netProfit || 0)}`, trend: '+3%' },
+    { 
+      icon: '📊', 
+      label: timeRange === 'today' ? 'Sales (Today)' : `Sales (this ${rangeLabel})`, 
+      value: fmt(stats?.totalSales || 0), 
+      note: `${stats?.monthInvoiceCount || 0} invoices`, 
+      trend: stats?.salesGrowth ? (stats.salesGrowth >= 0 ? `+${stats.salesGrowth}%` : `${stats.salesGrowth}%`) : null 
+    },
+    { 
+      icon: '💰', 
+      label: timeRange === 'today' ? 'Received (Today)' : `Received (this ${rangeLabel})`, 
+      value: fmt(stats?.totalReceived || 0), 
+      note: 'Payments collected' 
+    },
+    { 
+      icon: '⏳', 
+      label: 'Pending', 
+      value: fmt(stats?.totalPending || 0), 
+      note: `${stats?.overdueInvoices?.length || 0} overdue` 
+    },
+    { 
+      icon: '📉', 
+      label: timeRange === 'today' ? 'Expenses (Today)' : `Expenses (this ${rangeLabel})`, 
+      value: fmt(stats?.totalExpenses || 0), 
+      note: `Profit: ${fmt(stats?.netProfit || 0)}` 
+    },
   ];
 
   // Simple chart data visualization
@@ -109,9 +130,11 @@ function Dashboard() {
             <h3 className="stat-value">{m.value}</h3>
             <div className="stat-footer">
               <p className="stat-note">{m.note}</p>
-              <span className={`stat-trend ${m.trend?.startsWith('+') ? 'positive' : 'negative'}`}>
-                {m.trend}
-              </span>
+              {m.trend && (
+                <span className={`stat-trend ${m.trend?.startsWith('+') ? 'positive' : 'negative'}`}>
+                  {m.trend}
+                </span>
+              )}
             </div>
           </article>
         ))}
