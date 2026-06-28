@@ -105,9 +105,33 @@ function AppShell() {
   );
 }
 
+const CURRENT_VERSION = "1.0.0";
+
 function App() {
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [updateUrl, setUpdateUrl] = useState('');
+  const [onlineVersion, setOnlineVersion] = useState('');
+
+  useEffect(() => {
+    const checkUpdate = async () => {
+      try {
+        const res = await fetch(`/version.json?t=${Date.now()}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.version && data.version !== CURRENT_VERSION) {
+            setOnlineVersion(data.version);
+            setUpdateUrl(data.url || '/KhataPe.apk');
+            setUpdateAvailable(true);
+          }
+        }
+      } catch (err) {
+        console.warn('Update check failed', err);
+      }
+    };
+    checkUpdate();
+  }, []);
 
   useEffect(() => {
     if (!supabase) { setAuthLoading(false); return undefined; }
@@ -159,8 +183,27 @@ function App() {
           <Auth />
         </>
       )}
+
+      {updateAvailable && (
+        <div className="update-modal-overlay">
+          <div className="update-modal-card">
+            <span className="update-modal-icon">🚀</span>
+            <h3>Update Available!</h3>
+            <p>A new version of KhataPe (v{onlineVersion}) is available. Please update the application now to get the latest features and stability improvements.</p>
+            <div className="update-modal-buttons">
+              <a href={updateUrl} download="KhataPe.apk" className="update-btn primary-btn" onClick={() => setUpdateAvailable(false)}>
+                Download & Install
+              </a>
+              <button className="update-btn secondary-btn" onClick={() => setUpdateAvailable(false)}>
+                Later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Router>
   );
 }
 
 export default App;
+

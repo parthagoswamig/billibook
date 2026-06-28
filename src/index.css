@@ -975,3 +975,111 @@ body {
     min-width: 600px; /* Forces table scrollbar rather than column overlapping */
   }
 }
+
+/* Update Notification Modal Styles */
+.update-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  padding: 20px;
+}
+
+.update-modal-card {
+  background: white;
+  border-radius: 24px;
+  padding: 32px;
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.update-modal-icon {
+  font-size: 48px;
+  background: #EEF2FF;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.15);
+}
+
+.update-modal-card h3 {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0F172A;
+  margin-bottom: 12px;
+  margin-top: 0;
+}
+
+.update-modal-card p {
+  font-size: 14px;
+  color: #475569;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.update-modal-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.update-btn {
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  border: none;
+}
+
+.update-btn.primary-btn {
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  color: white !important;
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+}
+
+.update-btn.primary-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(99, 102, 241, 0.4);
+}
+
+.update-btn.secondary-btn {
+  background: #F1F5F9;
+  color: #475569;
+}
+
+.update-btn.secondary-btn:hover {
+  background: #E2E8F0;
+}
+
