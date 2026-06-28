@@ -238,3 +238,71 @@
 .auth-benefits, .auth-left {
   display: none; /* Spec rules require simple 420px card wrapper for auth layout */
 }
+
+/* APK Download Banner Style */
+.auth-apk-download {
+  width: 100%;
+  margin-top: 20px;
+}
+
+.apk-download-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 16px 20px;
+  text-decoration: none;
+  color: white;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.apk-download-banner:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(99, 102, 241, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(99, 102, 241, 0.15);
+}
+
+.apk-icon {
+  font-size: 28px;
+  background: rgba(99, 102, 241, 0.15);
+  padding: 10px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.apk-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.apk-text strong {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.apk-text span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.apk-arrow {
+  font-size: 20px;
+  opacity: 0.8;
+  transition: transform 0.2s ease;
+}
+
+.apk-download-banner:hover .apk-arrow {
+  transform: translateY(2px);
+  opacity: 1;
+}
+

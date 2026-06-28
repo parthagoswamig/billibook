@@ -225,6 +225,31 @@ body {
   padding: 12px;
 }
 
+.sidebar-download-app-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sidebar-download-app-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  color: white;
+}
+
 .sidebar-logout {
   width: 100%;
   background: rgba(239, 68, 68, 0.1);

@@ -129,6 +129,9 @@ function Sidebar({ onClose }) {
       </div>
 
       <div className="sidebar-footer-wrapper">
+        <a href="/KhataPe.apk" download="KhataPe.apk" className="sidebar-download-app-btn">
+          📱 Download App
+        </a>
         <button className="sidebar-logout" onClick={() => { onClose?.(); supabase?.auth.signOut(); }} type="button">
           🚪 Log out
         </button>

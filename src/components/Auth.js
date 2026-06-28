@@ -108,9 +108,20 @@ function Auth() {
             </button>
           </form>
         </div>
+        <div className="auth-apk-download">
+          <a href="/KhataPe.apk" download="KhataPe.apk" className="apk-download-banner">
+            <span className="apk-icon">📱</span>
+            <div className="apk-text">
+              <strong>Download Android App</strong>
+              <span>Get KhataPe GST Billing on your mobile phone</span>
+            </div>
+            <span className="apk-arrow">⬇️</span>
+          </a>
+        </div>
       </div>
     </div>
   );
 }
 
 export default Auth;
+
