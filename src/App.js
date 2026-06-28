@@ -117,12 +117,12 @@ function App() {
   useEffect(() => {
     const checkUpdate = async () => {
       try {
-        const res = await fetch(`/version.json?t=${Date.now()}`);
+        const res = await fetch(`https://khatape360.vercel.app/version.json?t=${Date.now()}`);
         if (res.ok) {
           const data = await res.json();
           if (data.version && data.version !== CURRENT_VERSION) {
             setOnlineVersion(data.version);
-            setUpdateUrl(data.url || '/KhataPe.apk');
+            setUpdateUrl(data.url || 'https://khatape360.vercel.app/KhataPe.apk');
             setUpdateAvailable(true);
           }
         }
