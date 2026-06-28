@@ -32,12 +32,17 @@
   font-weight: 600;
 }
 
-/* Enhanced Stats Grid */
 .stats-grid.enhanced {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 16px;
   margin-bottom: 24px;
+}
+
+@media (max-width: 640px) {
+  .stats-grid.enhanced {
+    grid-template-columns: 1fr;
+  }
 }
 
 .stat-card.enhanced {
