@@ -118,6 +118,8 @@
   color: var(--text-primary);
   margin-top: 8px;
   font-variant-numeric: tabular-nums;
+  -webkit-text-fill-color: initial;
+  background: none;
 }
 
 .stat-footer {
