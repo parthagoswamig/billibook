@@ -74,7 +74,9 @@ function Auth() {
       <div className="auth-container">
         <div className="auth-card">
           <div className="auth-branding">
-            <div className="brand-logo"><span className="logo-icon">📒</span></div>
+            <div className="brand-logo" style={{ background: 'transparent', boxShadow: 'none' }}>
+              <img src="/logo.png" alt="KhataPe Logo" style={{ width: '64px', height: '64px', objectFit: 'contain' }} />
+            </div>
             <h1 className="brand-title">KhataPe</h1>
             <p className="brand-tagline">GST Billing Software</p>
           </div>

@@ -62,7 +62,7 @@ function Sidebar({ onClose }) {
     <aside className="sidebar">
       <div className="sidebar-header-wrapper">
         <div className="sidebar-logo-container">
-          <span className="sidebar-logo-icon">📒</span>
+          <img src="/logo.png" alt="KhataPe Logo" style={{ width: '28px', height: '28px', objectFit: 'contain', marginRight: '8px' }} />
           <div className="sidebar-logo-text-wrapper">
             <span className="sidebar-logo-title">KhataPe</span>
             <span className="sidebar-logo-tagline">GST Billing</span>
