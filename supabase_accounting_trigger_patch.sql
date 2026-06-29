@@ -394,6 +394,11 @@ DECLARE
   ar_ap_name text;
   cash_bank_name text;
 BEGIN
+  IF (TG_OP = 'DELETE') THEN
+    DELETE FROM public.journal_entries WHERE reference_id = OLD.id AND reference_type IN ('payment', 'payment_reversal');
+    RETURN OLD;
+  END IF;
+
   IF NEW.customer_id IS NOT NULL THEN
     SELECT name, type INTO cust_name, cust_type FROM public.customers WHERE id = NEW.customer_id;
   END IF;

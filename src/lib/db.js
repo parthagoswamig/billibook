@@ -144,6 +144,7 @@ export async function saveProfile(userId, profile) {
     entity_id: null,
     details: { business_name: profile.business_name }
   }]);
+  invalidateDashboardCache(tenantId);
   return result;
 }
 
@@ -1415,7 +1416,8 @@ export async function getDashboardStats(userId, timeRange = 'month') {
     lowStockRes,
     recentInvoicesRes,
     overdueInvoicesRes,
-    totalPendingRes
+    totalPendingRes,
+    paymentsRes
   ] = await Promise.all([
     supabase.from('invoices').select('type, document_kind, total, paid, date, last_payment_mode, customer_id, customers(name), invoice_items(name, qty)').eq('user_id', tenantId).gte('date', queryStartDateStr),
     supabase.from('expenses').select('amount, date').eq('user_id', tenantId).gte('date', queryStartDateStr),
@@ -1424,7 +1426,8 @@ export async function getDashboardStats(userId, timeRange = 'month') {
     supabase.from('products').select('id, name, stock, unit').eq('user_id', tenantId).lte('stock', 5).order('stock', { ascending: true }).limit(5),
     supabase.from('invoices').select('id, invoice_no, total, status, date, customers(name)').eq('user_id', tenantId).eq('type', 'sale').eq('document_kind', 'sale_invoice').order('date', { ascending: false }).order('created_at', { ascending: false }).limit(5),
     supabase.from('invoices').select('id, invoice_no, total, balance, status, due_date, customers(name, phone)').eq('user_id', tenantId).eq('type', 'sale').eq('document_kind', 'sale_invoice').eq('status', 'overdue').limit(5),
-    supabase.from('invoices').select('balance').eq('user_id', tenantId).eq('type', 'sale').eq('document_kind', 'sale_invoice').gt('balance', 0)
+    supabase.from('invoices').select('balance').eq('user_id', tenantId).eq('type', 'sale').eq('document_kind', 'sale_invoice').gt('balance', 0),
+    supabase.from('invoice_payments').select('amount, created_at, payment_mode').eq('user_id', tenantId).gte('created_at', `${queryStartDateStr}T00:00:00Z`)
   ]);
 
   const invoices = invoicesRes.data || [];
@@ -1435,6 +1438,7 @@ export async function getDashboardStats(userId, timeRange = 'month') {
   const recentInvoices = recentInvoicesRes.data || [];
   const overdueInvoices = overdueInvoicesRes.data || [];
   const totalPending = (totalPendingRes.data || []).reduce((s, i) => s + parseFloat(i.balance || 0), 0);
+  const payments = paymentsRes.data || [];
 
   const saleInvoices = invoices.filter((i) => i.type === 'sale' && i.document_kind === 'sale_invoice');
   const periodSales = saleInvoices.filter((i) => i.date >= startDateStr);
@@ -1444,15 +1448,17 @@ export async function getDashboardStats(userId, timeRange = 'month') {
   const prevSales = prevPeriodSales.reduce((s, i) => s + parseFloat(i.total || 0), 0);
   const salesGrowth = prevSales > 0 ? parseFloat((((totalSales - prevSales) / prevSales) * 100).toFixed(1)) : 0;
 
-  const periodReceived = periodSales.reduce((s, i) => s + parseFloat(i.paid || 0), 0);
+  const periodReceived = payments
+    .filter(p => p.created_at && p.created_at.split('T')[0] >= startDateStr)
+    .reduce((s, p) => s + parseFloat(p.amount || 0), 0);
   const periodExpenses = expenses.filter((e) => e.date >= startDateStr).reduce((s, e) => s + parseFloat(e.amount || 0), 0);
   const netProfit = totalSales - periodExpenses;
 
   // Payment Mode Breakdown
   const paymentModeCounts = {};
-  periodSales.forEach(inv => {
-    const mode = inv.last_payment_mode || 'Cash';
-    paymentModeCounts[mode] = (paymentModeCounts[mode] || 0) + parseFloat(inv.total || 0);
+  payments.filter(p => p.created_at && p.created_at.split('T')[0] >= startDateStr).forEach(p => {
+    const mode = p.payment_mode || 'Cash';
+    paymentModeCounts[mode] = (paymentModeCounts[mode] || 0) + parseFloat(p.amount || 0);
   });
   const totalPaymentSum = Object.values(paymentModeCounts).reduce((a, b) => a + b, 0);
   const paymentModes = Object.entries(paymentModeCounts).map(([mode, amt]) => ({

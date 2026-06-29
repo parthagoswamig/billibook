@@ -54,23 +54,32 @@ async function runTest() {
 
   // B. Clean up old test data (Wipe everything)
   console.log("🧹 Wiping old test data to ensure clean verification...");
-  await supabase.from('invoice_payments').delete().eq('user_id', tenantId);
-  await supabase.from('invoice_items').delete().eq('user_id', tenantId);
-  await supabase.from('invoices').delete().eq('user_id', tenantId);
-  await supabase.from('stock_adjustments').delete().eq('user_id', tenantId);
-  await supabase.from('stock_transfers').delete().eq('user_id', tenantId);
-  await supabase.from('warehouse_stocks').delete().eq('user_id', tenantId);
-  await supabase.from('warehouses').delete().eq('user_id', tenantId);
-  await supabase.from('stock_alerts').delete().eq('user_id', tenantId);
-  await supabase.from('expenses').delete().eq('user_id', tenantId);
-  await supabase.from('journal_items').delete().eq('user_id', tenantId);
-  await supabase.from('journal_entries').delete().eq('user_id', tenantId);
-  await supabase.from('payment_reminders').delete().eq('user_id', tenantId);
-  await supabase.from('recurring_invoices').delete().eq('user_id', tenantId);
-  await supabase.from('team_invites').delete().eq('user_id', tenantId);
-  await supabase.from('products').delete().eq('user_id', tenantId);
-  await supabase.from('customers').delete().eq('user_id', tenantId);
-  await supabase.from('audit_logs').delete().eq('user_id', tenantId);
+  const tablesToClear = [
+    'invoice_payments',
+    'invoice_items',
+    'journal_items',
+    'journal_entries',
+    'invoices',
+    'stock_adjustments',
+    'stock_transfers',
+    'warehouse_stocks',
+    'warehouses',
+    'stock_alerts',
+    'expenses',
+    'payment_reminders',
+    'recurring_invoices',
+    'team_invites',
+    'products',
+    'customers',
+    'audit_logs'
+  ];
+
+  for (const tbl of tablesToClear) {
+    const { error } = await supabase.from(tbl).delete().eq('user_id', tenantId);
+    if (error) {
+      console.warn(`⚠️ Warning: Wiping table "${tbl}" failed:`, error.message);
+    }
+  }
   console.log("✅ Database tables fully cleaned!\n");
 
   // C. Seed 5 Customers (Parties)
