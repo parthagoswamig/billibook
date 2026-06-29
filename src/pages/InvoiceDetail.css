@@ -383,21 +383,363 @@
   }
 }
 
+/* Premium myBillBook style invoice overrides */
+
+.billbook-invoice-wrapper {
+  background: #ffffff;
+  color: #1e293b;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  font-family: 'Inter', sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+.invoice-theme-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: #2563eb; /* Premium Royal Blue */
+}
+
+.invoice-title-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 24px;
+  margin-bottom: 24px;
+}
+
+.invoice-brand {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.invoice-logo {
+  width: 70px;
+  height: 70px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+}
+
+.invoice-logo-placeholder {
+  width: 70px;
+  height: 70px;
+  background: #3b82f6;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  border-radius: 8px;
+}
+
+.business-name {
+  font-size: 22px;
+  font-weight: 800;
+  color: #1e3a8a;
+  margin: 0 0 6px 0;
+}
+
+.business-detail {
+  font-size: 13px;
+  color: #475569;
+  margin: 2px 0;
+}
+
+.invoice-meta-box {
+  text-align: right;
+  min-width: 250px;
+}
+
+.tax-invoice-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #2563eb;
+  margin: 0 0 12px 0;
+  letter-spacing: 0.05em;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  font-size: 13px;
+  text-align: left;
+  justify-content: end;
+}
+
+.meta-label {
+  color: #64748b;
+  font-weight: 500;
+  text-align: right;
+}
+
+.meta-value {
+  color: #1e293b;
+  text-align: left;
+}
+
+.status-badge-container {
+  margin-top: 12px;
+}
+
+/* Parties Grid */
+.invoice-parties-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.party-card {
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.party-card h3 {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2563eb;
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.customer-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e3a8a;
+  margin: 0 0 6px 0;
+}
+
+.customer-detail {
+  font-size: 13px;
+  color: #475569;
+  margin: 4px 0;
+  line-height: 1.4;
+}
+
+/* Items Table */
+.invoice-table-container {
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
+
+.invoice-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #cbd5e1;
+  font-size: 13px;
+}
+
+.invoice-items-table th {
+  background: #f1f5f9;
+  color: #1e293b;
+  font-weight: 700;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+
+.invoice-items-table td {
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  vertical-align: middle;
+}
+
+.invoice-items-table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+/* Footer layout */
+.invoice-footer-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 32px;
+  align-items: start;
+  margin-top: 24px;
+}
+
+.footer-left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.amount-in-words {
+  font-size: 13px;
+  padding: 12px;
+  background: #f8fafc;
+  border-left: 4px solid #2563eb;
+  border-radius: 4px;
+}
+
+.words-text {
+  font-style: italic;
+  color: #1e3a8a;
+}
+
+.bank-details-box,
+.terms-box {
+  padding: 14px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.bank-details-box h4,
+.terms-box h4 {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  margin: 0 0 6px 0;
+  text-transform: uppercase;
+}
+
+.bank-details-box p,
+.terms-box p {
+  font-size: 12px;
+  color: #64748b;
+  margin: 4px 0;
+  line-height: 1.4;
+}
+
+.totals-summary-box {
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #475569;
+}
+
+.summary-row span:last-child {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.grand-total-row {
+  border-top: 2px solid #cbd5e1;
+  padding-top: 8px;
+  margin-top: 4px;
+  font-size: 16px;
+  font-weight: 800;
+  color: #1e3a8a;
+}
+
+.grand-total-row span:last-child {
+  color: #2563eb;
+  font-size: 18px;
+}
+
+.paid-row {
+  color: #16a34a;
+}
+.balance-row {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.signature-box {
+  margin-top: 32px;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.signature-line {
+  width: 180px;
+  border-bottom: 1px solid #94a3b8;
+  margin-bottom: 8px;
+}
+
+.signature-box p {
+  font-size: 12px;
+  color: #64748b;
+  margin: 2px 0;
+}
+
+.signature-biz-name {
+  font-weight: 700;
+  color: #334155;
+}
+
+.thank-you-footer {
+  text-align: center;
+  margin-top: 40px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 16px;
+  font-size: 12px;
+  color: #94a3b8;
+  font-style: italic;
+}
+
 /* Print Styles */
 @media print {
   body {
-    background: white;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 12px !important;
   }
 
-  .invoice-detail-container {
-    gap: 20px;
+  .billbook-invoice-wrapper {
+    box-shadow: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
   }
 
-  .invoice-header {
-    page-break-inside: avoid;
+  .invoice-theme-accent {
+    height: 4px !important;
   }
 
-  .table-row {
-    page-break-inside: avoid;
+  .party-card {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+  }
+
+  .invoice-items-table th {
+    background: #f1f5f9 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .invoice-items-table td,
+  .invoice-items-table th {
+    border: 1px solid #cbd5e1 !important;
+  }
+
+  .amount-in-words,
+  .totals-summary-box {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+  }
+
+  .footer-left-col,
+  .footer-right-col,
+  .invoice-footer-grid,
+  .invoice-items-table tr {
+    page-break-inside: avoid !important;
   }
 }

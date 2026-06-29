@@ -195,9 +195,19 @@ function App() {
             <h3>Update Available!</h3>
             <p>A new version of KhataPe (v{onlineVersion}) is available. Please update the application now to get the latest features and stability improvements.</p>
             <div className="update-modal-buttons">
-              <a href={updateUrl} download="KhataPe.apk" className="update-btn primary-btn" onClick={() => setUpdateAvailable(false)}>
+              <button 
+                className="update-btn primary-btn" 
+                onClick={() => {
+                  setUpdateAvailable(false);
+                  if (window.Capacitor) {
+                    window.open(updateUrl, '_system');
+                  } else {
+                    window.open(updateUrl, '_blank');
+                  }
+                }}
+              >
                 Download & Install
-              </a>
+              </button>
               <button className="update-btn secondary-btn" onClick={() => setUpdateAvailable(false)}>
                 Later
               </button>

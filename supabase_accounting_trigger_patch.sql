@@ -247,6 +247,9 @@ DECLARE
   igst_name text;
   inv_asset_name text;
   cogs_name text;
+  gen_exp_acc uuid;
+  gen_exp_name text;
+  diff numeric(15, 2) := 0.00;
 BEGIN
   -- Delete old journal entries if any
   DELETE FROM public.journal_entries WHERE reference_id = OLD.id AND reference_type = 'invoice';
@@ -327,6 +330,18 @@ BEGIN
       END IF;
     END IF;
 
+    -- Balancer for shipping charges, discounts, and round-offs
+    diff := NEW.total - (NEW.subtotal + NEW.gst_amount);
+    IF diff > 0.00 THEN
+      INSERT INTO public.journal_items (user_id, entry_id, account_id, account_name, debit, credit)
+      VALUES (NEW.user_id, je_id, rev_purch_acc, rev_purch_name, 0.00, diff);
+    ELSIF diff < 0.00 THEN
+      gen_exp_acc := public.get_coa_id(NEW.user_id, 'General Expense');
+      gen_exp_name := COALESCE((SELECT name FROM public.chart_of_accounts WHERE id = gen_exp_acc), 'General Expense');
+      INSERT INTO public.journal_items (user_id, entry_id, account_id, account_name, debit, credit)
+      VALUES (NEW.user_id, je_id, gen_exp_acc, gen_exp_name, abs(diff), 0.00);
+    END IF;
+
     -- COGS perpetual calculation
     SELECT COALESCE(SUM(ii.qty * COALESCE(p.purchase_price, 0)), 0.00)
     INTO cogs_value
@@ -374,6 +389,20 @@ BEGIN
     -- Accounts Payable (Credit)
     INSERT INTO public.journal_items (user_id, entry_id, account_id, account_name, party_id, debit, credit)
     VALUES (NEW.user_id, je_id, ar_ap_acc, ar_ap_name, NEW.customer_id, 0.00, NEW.total);
+
+    -- Balancer for shipping charges, discounts, and round-offs
+    diff := NEW.total - (NEW.subtotal + NEW.gst_amount);
+    IF diff > 0.00 THEN
+      gen_exp_acc := public.get_coa_id(NEW.user_id, 'General Expense');
+      gen_exp_name := COALESCE((SELECT name FROM public.chart_of_accounts WHERE id = gen_exp_acc), 'General Expense');
+      INSERT INTO public.journal_items (user_id, entry_id, account_id, account_name, debit, credit)
+      VALUES (NEW.user_id, je_id, gen_exp_acc, gen_exp_name, diff, 0.00);
+    ELSIF diff < 0.00 THEN
+      gen_exp_acc := public.get_coa_id(NEW.user_id, 'General Expense');
+      gen_exp_name := COALESCE((SELECT name FROM public.chart_of_accounts WHERE id = gen_exp_acc), 'General Expense');
+      INSERT INTO public.journal_items (user_id, entry_id, account_id, account_name, debit, credit)
+      VALUES (NEW.user_id, je_id, gen_exp_acc, gen_exp_name, 0.00, abs(diff));
+    END IF;
   END IF;
 
   RETURN NEW;

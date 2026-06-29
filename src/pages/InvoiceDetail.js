@@ -13,6 +13,64 @@ import {
   buildWhatsAppUrl, getDocumentDetailRoute,
 } from '../lib/utils';
 import './InvoiceDetail.css';
+
+function numberToWords(amount) {
+  const num = Math.floor(amount);
+  const paise = Math.round((amount - num) * 100);
+
+  const a = [
+    '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+    'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'
+  ];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  function g(n) {
+    if (n < 20) return a[n];
+    const digit = n % 10;
+    return b[Math.floor(n / 10)] + (digit ? ' ' + a[digit] : '');
+  }
+
+  function h(n) {
+    let str = '';
+    if (n >= 100) {
+      str += a[Math.floor(n / 100)] + ' Hundred ';
+      n %= 100;
+    }
+    if (n > 0) {
+      if (str !== '') str += 'and ';
+      str += g(n);
+    }
+    return str.trim();
+  }
+
+  function convert(n) {
+    if (n === 0) return 'Zero';
+    let word = '';
+    if (n >= 10000000) {
+      word += h(Math.floor(n / 10000000)) + ' Crore ';
+      n %= 10000000;
+    }
+    if (n >= 100000) {
+      word += h(Math.floor(n / 100000)) + ' Lakh ';
+      n %= 100000;
+    }
+    if (n >= 1000) {
+      word += h(Math.floor(n / 1000)) + ' Thousand ';
+      n %= 1000;
+    }
+    if (n > 0) {
+      word += h(n);
+    }
+    return word.trim();
+  }
+
+  let finalStr = convert(num) + ' Rupees';
+  if (paise > 0) {
+    finalStr += ' and ' + convert(paise) + ' Paise';
+  }
+  return finalStr + ' Only';
+}
+
 function InvoiceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -49,53 +107,86 @@ function InvoiceDetail() {
       navigate(location.pathname, { replace: true, state: {} });
       setTimeout(() => {
         window.print();
-      }, 500);
+      }, 1000);
     }
-  }, [invoice, location.state]);
+  }, [invoice, location]);
 
-  if (loading) return <div className="loading-screen">Loading...</div>;
-  if (!invoice) return <div className="loading-screen">Not found</div>;
+  if (loading) return <PageSection><div className="empty-state">Loading...</div></PageSection>;
+  if (error || !invoice) return <PageSection><p className="form-message form-error">{error || 'Document not found'}</p></PageSection>;
 
-  const cfg = DOCUMENT_KINDS[invoice.document_kind] || DOCUMENT_KINDS.sale_invoice;
-  const backRoute = getDocumentDetailRoute(invoice.document_kind);
   const items = invoice.invoice_items || [];
-  const fmt = (n) => formatCurrency(n, currency);
-  const supplyState = invoice.state_of_supply || invoice.customers?.state || '';
-  const isInterState = profile?.state && supplyState && profile.state !== supplyState;
-  const gstSplit = splitGst(invoice.gst_amount, isInterState);
-  const canPay = cfg.payment && invoice.status !== 'paid';
-  const canConvert = ['quotation', 'estimate', 'proforma_invoice'].includes(invoice.document_kind);
+  const cfg = DOCUMENT_KINDS[invoice.document_kind] || { label: 'Invoice', route: '/invoices' };
+  const backRoute = getDocumentDetailRoute(invoice.type, invoice.document_kind);
+  const shareText = `Dear ${invoice.customers?.name || 'Customer'},\n\nPlease find attached ${cfg.label} ${invoice.invoice_no} for ${formatCurrency(invoice.total, currency)}.\n\nThank you,\n${profile?.business_name || 'us'}`;
+  const whatsappUrl = buildWhatsAppUrl(invoice.customers?.phone, shareText);
+
+  const canConvert = invoice.document_kind === 'quotation' || invoice.document_kind === 'proforma' || invoice.document_kind === 'delivery_challan';
+  const canPay = (invoice.document_kind === 'sale_invoice' || invoice.document_kind === 'purchase_bill') && invoice.balance > 0;
 
   const handleSaveNotes = async () => {
-    if (!canEdit()) return;
-    await updateInvoiceNotes(invoice.id, notes);
-    setEditNotes(false);
-    setMessage('✓ Updated');
-    load();
+    try {
+      await updateInvoiceNotes(invoice.id, notes);
+      setInvoice({ ...invoice, notes });
+      setEditNotes(false);
+      setMessage('Notes updated successfully');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err) {
+      setError(err.message || 'Failed to update notes');
+      setTimeout(() => setError(''), 3000);
+    }
   };
 
-  const handleDelete = async () => {
-    if (!canDelete()) return;
-    if (!window.confirm('Delete permanently?')) return;
-    await deleteInvoice(invoice.id, tenantId, invoice.type, items, invoice.document_kind);
-    navigate(backRoute);
+  const handleConvert = async () => {
+    if (!window.confirm(`Are you sure you want to convert this ${cfg.label.toLowerCase()} to a Tax Invoice?`)) return;
+    try {
+      const newInv = await convertToInvoice(tenantId, invoice);
+      setMessage('Converted successfully');
+      setTimeout(() => setMessage(''), 3000);
+      navigate(`/invoices/sale_invoice/${newInv.id}`);
+    } catch (err) {
+      setError(err.message || 'Conversion failed');
+      setTimeout(() => setError(''), 3000);
+    }
   };
 
   const handlePayment = async (e) => {
     e.preventDefault();
-    if (!canCreate()) return;
-    await recordPayment(invoice.id, parseFloat(payForm.amount), payForm.payment_mode, payForm.note);
-    setShowPayModal(false);
-    load();
+    try {
+      const amt = parseFloat(payForm.amount);
+      if (isNaN(amt) || amt <= 0 || amt > invoice.balance) {
+        setError('Invalid payment amount');
+        return;
+      }
+      await recordPayment(tenantId, invoice.id, {
+        amount: amt,
+        payment_mode: payForm.payment_mode,
+        note: payForm.note,
+      });
+      setShowPayModal(false);
+      setPayForm({ amount: '', payment_mode: 'Cash', note: '' });
+      setMessage('Payment recorded successfully');
+      setTimeout(() => setMessage(''), 3000);
+      load();
+    } catch (err) {
+      setError(err.message || 'Failed to record payment');
+      setTimeout(() => setError(''), 3000);
+    }
   };
 
-  const handleConvert = async () => {
-    if (!canCreate()) return;
-    const newInv = await convertToInvoice(tenantId, invoice.id);
-    navigate(`/invoices/${newInv.id}`);
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this document permanently?')) return;
+    try {
+      await deleteInvoice(invoice.id);
+      navigate(backRoute);
+    } catch (err) {
+      setError(err.message || 'Failed to delete');
+      setTimeout(() => setError(''), 3000);
+    }
   };
-  const shareText = `${cfg.label} ${invoice.invoice_no}\nTotal: ${fmt(invoice.total)}\nBalance: ${fmt(invoice.balance)}\nDue: ${formatDate(invoice.due_date)}`;
-  const whatsappUrl = buildWhatsAppUrl(invoice.customers?.phone, shareText);
+
+  const fmt = (n) => formatCurrency(n, currency);
+  const gstSplit = splitGst(invoice.gst_amount, invoice.state_of_supply, profile?.state);
+  const supplyState = invoice.state_of_supply;
 
   return (
     <>
@@ -107,11 +198,8 @@ function InvoiceDetail() {
           <div className="action-buttons no-print">
             <button className="secondary-button" type="button" onClick={() => navigate(backRoute)}>← Back</button>
             <button className="secondary-button" type="button" onClick={() => window.print()}>🖨️ Print</button>
-            <button className="secondary-button" type="button" onClick={() => window.open(`mailto:${invoice.customers?.email || ''}?subject=${invoice.invoice_no}&body=${encodeURIComponent(shareText)}`)}>📧 Email</button>
-            {invoice.customers?.phone && (
-              <a className="secondary-button wa-btn" href={whatsappUrl} target="_blank" rel="noreferrer">💬 WhatsApp</a>
-            )}
-            {canConvert && canCreate() && <button className="primary-button" type="button" onClick={handleConvert}>→ Convert to Invoice</button>}
+            <a className="secondary-button wa-btn" href={whatsappUrl} target="_blank" rel="noreferrer">💬 WhatsApp</a>
+            {canConvert && canCreate() && <button className="primary-button" type="button" onClick={handleConvert}>→ Convert</button>}
             {canPay && canCreate() && <button className="primary-button" type="button" onClick={() => setShowPayModal(true)}>💳 Payment</button>}
             {canEdit() && <button className="secondary-button" type="button" onClick={() => setEditNotes(!editNotes)}>✏️ Notes</button>}
           </div>
@@ -121,95 +209,170 @@ function InvoiceDetail() {
           {message && <p className="form-message form-success no-print">{message}</p>}
           {error && <p className="form-message form-error no-print">{error}</p>}
 
-          <div className="invoice-print-header">
-            {profile?.logo_url && <img src={profile.logo_url} alt="" className="invoice-logo" />}
-            <div>
-              <h2 className="business-name">{profile?.business_name || 'Business'}</h2>
-              {profile?.address && <p className="business-detail">{profile.address}</p>}
-              {profile?.gstin && <p className="business-detail">GSTIN: {profile.gstin}</p>}
-            </div>
-          </div>
+          <div className="billbook-invoice-wrapper">
+            <div className="invoice-theme-accent" />
 
-          <div className="invoice-header">
-            <div><h2>{cfg.label}</h2><span className={`status-badge status-${invoice.status}`}>{invoice.status}</span></div>
-            <div><p>Date: {formatDate(invoice.date)}</p>{invoice.due_date && <p>Due: {formatDate(invoice.due_date)}</p>}</div>
-          </div>
-
-          <div className="section" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-            <div>
-              <h3>{invoice.type === 'purchase' ? 'Supplier' : 'Bill To'}</h3>
-              <p className="customer-name">{invoice.customers?.name || 'Walk-in Customer'}</p>
-              {invoice.customers?.gstin && <p style={{ fontSize: '13px', marginTop: '4px' }}><strong>GSTIN:</strong> {invoice.customers.gstin}</p>}
-              {invoice.customers?.address && <p style={{ fontSize: '13px', marginTop: '2px' }}><strong>Address:</strong> {invoice.customers.address}</p>}
-              {invoice.customers?.phone && <p style={{ fontSize: '13px', marginTop: '2px' }}><strong>Phone:</strong> {invoice.customers.phone}</p>}
-            </div>
-            <div>
-              <h3>Supply & Dispatch Details</h3>
-              <p style={{ fontSize: '13px' }}><strong>Place of Supply (State):</strong> {supplyState || 'Not Specified'}</p>
-              {invoice.due_date && <p style={{ fontSize: '13px', marginTop: '4px' }}><strong>Due Date:</strong> {formatDate(invoice.due_date)}</p>}
-              <p style={{ fontSize: '13px', marginTop: '4px' }}><strong>Status:</strong> <span className={`status-badge status-${invoice.status}`} style={{ marginLeft: '6px' }}>{invoice.status}</span></p>
-            </div>
-          </div>
-
-          <div className="section">
-            <div className="items-table">
-              <div className="table-header" style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr 1fr 1fr 0.8fr 0.8fr 1.2fr', gap: '12px' }}>
-                <div className="col-description" style={{ textAlign: 'left' }}>Item</div>
-                <div>HSN</div>
-                <div className="col-qty">Qty</div>
-                <div className="col-rate">Rate</div>
-                <div style={{ textAlign: 'right' }}>Disc%</div>
-                <div className="col-tax">GST%</div>
-                <div className="col-amount">Total</div>
+            <div className="invoice-title-header">
+              <div className="invoice-brand">
+                <img 
+                  src={profile?.logo_url || '/logo.png'} 
+                  alt="" 
+                  className="invoice-logo" 
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+                <div>
+                  <h1 className="business-name">{profile?.business_name || 'Business Name'}</h1>
+                  {profile?.address && <p className="business-detail">{profile.address}</p>}
+                  {profile?.gstin && <p className="business-detail"><strong>GSTIN:</strong> {profile.gstin}</p>}
+                  {profile?.phone && <p className="business-detail"><strong>Phone:</strong> {profile.phone}</p>}
+                  {profile?.email && <p className="business-detail"><strong>Email:</strong> {profile.email}</p>}
+                </div>
               </div>
-              {items.map((item) => {
-                const qty = parseFloat(item.qty) || 0;
-                const price = parseFloat(item.price) || 0;
-                const itemDisc = parseFloat(item.discount) || 0;
-                const gstRate = parseFloat(item.gst) || 0;
-                const base = qty * price;
-                const discAmt = base * (itemDisc / 100);
-                const taxable = base - discAmt;
-                const rowGst = taxable * (gstRate / 100);
-                const netRowAmount = taxable + rowGst;
+              <div className="invoice-meta-box">
+                <h2 className="tax-invoice-title">{cfg.label?.toUpperCase() || 'TAX INVOICE'}</h2>
+                <div className="meta-grid">
+                  <span className="meta-label">Invoice No:</span>
+                  <span className="meta-value"><strong>{invoice.invoice_no}</strong></span>
+                  <span className="meta-label">Date:</span>
+                  <span className="meta-value">{formatDate(invoice.date)}</span>
+                  {invoice.due_date && (
+                    <>
+                      <span className="meta-label">Due Date:</span>
+                      <span className="meta-value">{formatDate(invoice.due_date)}</span>
+                    </>
+                  )}
+                  <span className="meta-label">Place of Supply:</span>
+                  <span className="meta-value">{supplyState || 'Not Specified'}</span>
+                </div>
+                <div className="status-badge-container no-print">
+                  <span className={`status-badge status-${invoice.status}`}>{invoice.status}</span>
+                </div>
+              </div>
+            </div>
 
-                return (
-                  <div key={item.id} className="table-row" style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr 1fr 1fr 0.8fr 0.8fr 1.2fr', gap: '12px' }}>
-                    <div className="col-description" style={{ textAlign: 'left' }}>
-                      {item.name}
-                    </div>
-                    <div style={{ color: 'var(--text-secondary)' }}>{item.hsn || '—'}</div>
-                    <div className="col-qty">{item.qty} {item.unit || 'Pcs'}</div>
-                    <div className="col-rate">{fmt(item.price)}</div>
-                    <div style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>{item.discount > 0 ? `${item.discount}%` : '—'}</div>
-                    <div className="col-tax">{item.gst}%</div>
-                    <div className="col-amount">{fmt(netRowAmount)}</div>
+            <div className="invoice-parties-grid">
+              <div className="party-card bill-to">
+                <h3>BILL TO</h3>
+                <p className="customer-name">{invoice.customers?.name || 'Walk-in Customer'}</p>
+                {invoice.customers?.address && <p className="customer-detail"><strong>Address:</strong> {invoice.customers.address}</p>}
+                {invoice.customers?.gstin && <p className="customer-detail"><strong>GSTIN:</strong> {invoice.customers.gstin}</p>}
+                {invoice.customers?.phone && <p className="customer-detail"><strong>Phone:</strong> {invoice.customers.phone}</p>}
+                {invoice.customers?.email && <p className="customer-detail"><strong>Email:</strong> {invoice.customers.email}</p>}
+              </div>
+              <div className="party-card ship-to">
+                <h3>SHIP TO / DISPATCH DETAILS</h3>
+                <p className="customer-name">{invoice.customers?.name || 'Walk-in Customer'}</p>
+                {invoice.customers?.address && <p className="customer-detail"><strong>Address:</strong> {invoice.customers.address}</p>}
+                <p className="customer-detail"><strong>State of Supply:</strong> {supplyState || 'Not Specified'}</p>
+              </div>
+            </div>
+
+            <div className="invoice-table-container">
+              <table className="invoice-items-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '40px' }}>#</th>
+                    <th style={{ textAlign: 'left' }}>Item Name / Description</th>
+                    <th style={{ width: '80px' }}>HSN/SAC</th>
+                    <th style={{ width: '70px', textAlign: 'right' }}>Qty</th>
+                    <th style={{ width: '100px', textAlign: 'right' }}>Rate/Unit</th>
+                    <th style={{ width: '80px', textAlign: 'right' }}>Discount</th>
+                    <th style={{ width: '80px', textAlign: 'right' }}>GST %</th>
+                    <th style={{ width: '120px', textAlign: 'right' }}>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item, idx) => {
+                    const qty = parseFloat(item.qty) || 0;
+                    const price = parseFloat(item.price) || 0;
+                    const itemDisc = parseFloat(item.discount) || 0;
+                    const gstRate = parseFloat(item.gst) || 0;
+                    const base = qty * price;
+                    const discAmt = base * (itemDisc / 100);
+                    const taxable = base - discAmt;
+                    const rowGst = taxable * (gstRate / 100);
+                    const netRowAmount = taxable + rowGst;
+
+                    return (
+                      <tr key={item.id}>
+                        <td>{idx + 1}</td>
+                        <td style={{ textAlign: 'left', fontWeight: '500' }}>{item.name}</td>
+                        <td>{item.hsn || '—'}</td>
+                        <td style={{ textAlign: 'right' }}>{item.qty} {item.unit || 'Pcs'}</td>
+                        <td style={{ textAlign: 'right' }}>{fmt(item.price)}</td>
+                        <td style={{ textAlign: 'right' }}>{item.discount > 0 ? `${item.discount}%` : '—'}</td>
+                        <td style={{ textAlign: 'right' }}>{item.gst}%</td>
+                        <td style={{ textAlign: 'right', fontWeight: '600' }}>{fmt(netRowAmount)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="invoice-footer-grid">
+              <div className="footer-left-col">
+                <div className="amount-in-words">
+                  <strong>Total in Words:</strong> <span className="words-text">{numberToWords(invoice.total)}</span>
+                </div>
+
+                {(profile?.bank_name || profile?.upi_id) && (
+                  <div className="bank-details-box">
+                    <h4>Bank Details</h4>
+                    {profile.bank_name && (
+                      <p><strong>Bank:</strong> {profile.bank_name} | <strong>A/c No:</strong> {profile.account_no} | <strong>IFSC:</strong> {profile.ifsc}</p>
+                    )}
+                    {profile.upi_id && <p><strong>UPI ID:</strong> {profile.upi_id}</p>}
                   </div>
-                );
-              })}
+                )}
+
+                {profile?.terms && (
+                  <div className="terms-box">
+                    <h4>Terms & Conditions</h4>
+                    <p>{profile.terms}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="footer-right-col">
+                <div className="totals-summary-box">
+                  <div className="summary-row"><span>Subtotal:</span><span>{fmt(invoice.subtotal)}</span></div>
+                  {parseFloat(invoice.shipping_charges) > 0 && <div className="summary-row"><span>Shipping:</span><span>{fmt(invoice.shipping_charges)}</span></div>}
+                  {parseFloat(invoice.discount) > 0 && <div className="summary-row"><span>Discount:</span><span>-{fmt(invoice.discount)}</span></div>}
+                  {gstSplit.cgst > 0 && (
+                    <>
+                      <div className="summary-row"><span>CGST:</span><span>{fmt(gstSplit.cgst)}</span></div>
+                      <div className="summary-row"><span>SGST:</span><span>{fmt(gstSplit.sgst)}</span></div>
+                    </>
+                  )}
+                  {gstSplit.igst > 0 && <div className="summary-row"><span>IGST:</span><span>{fmt(gstSplit.igst)}</span></div>}
+                  {parseFloat(invoice.round_off) !== 0 && <div className="summary-row"><span>Round Off:</span><span>{fmt(invoice.round_off)}</span></div>}
+                  
+                  <div className="summary-row grand-total-row">
+                    <span>Grand Total:</span>
+                    <span>{fmt(invoice.total)}</span>
+                  </div>
+
+                  {cfg.payment && (
+                    <>
+                      <div className="summary-row paid-row"><span>Paid:</span><span>{fmt(invoice.paid)}</span></div>
+                      <div className="summary-row balance-row"><span>Balance Due:</span><span>{fmt(invoice.balance)}</span></div>
+                    </>
+                  )}
+                </div>
+
+                <div className="signature-box">
+                  <div className="signature-line" />
+                  <p>Authorized Signatory</p>
+                  <p className="signature-biz-name">{profile?.business_name}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="thank-you-footer">
+              <p>Thank you for your business!</p>
             </div>
           </div>
-
-          <div className="totals-section">
-            <div className="total-row"><span>Subtotal</span><span>{fmt(invoice.subtotal)}</span></div>
-            {parseFloat(invoice.shipping_charges) > 0 && <div className="total-row"><span>Shipping Charges</span><span>{fmt(invoice.shipping_charges)}</span></div>}
-            {parseFloat(invoice.discount) > 0 && <div className="total-row"><span>Discount</span><span>-{fmt(invoice.discount)}</span></div>}
-            {gstSplit.cgst > 0 && <><div className="total-row"><span>CGST</span><span>{fmt(gstSplit.cgst)}</span></div><div className="total-row"><span>SGST</span><span>{fmt(gstSplit.sgst)}</span></div></>}
-            {gstSplit.igst > 0 && <div className="total-row"><span>IGST</span><span>{fmt(gstSplit.igst)}</span></div>}
-            {parseFloat(invoice.round_off) !== 0 && <div className="total-row"><span>Round off</span><span>{fmt(invoice.round_off)}</span></div>}
-            <div className="total-row grand-total"><span>Total</span><span>{fmt(invoice.total)}</span></div>
-            {cfg.payment && <><div className="total-row"><span>Paid</span><span>{fmt(invoice.paid)}</span></div><div className="total-row"><span>Balance</span><span>{fmt(invoice.balance)}</span></div></>}
-          </div>
-
-          {(profile?.bank_name || profile?.upi_id) && (
-            <div className="section bank-section">
-              <h3>Pay via</h3>
-              {profile.bank_name && <p>{profile.bank_name} | {profile.account_no} | {profile.ifsc}</p>}
-              {profile.upi_id && <p>UPI: {profile.upi_id}</p>}
-            </div>
-          )}
-
-          {profile?.terms && <div className="section"><h3>Terms</h3><p>{profile.terms}</p></div>}
 
           {editNotes ? (
             <div className="section no-print">

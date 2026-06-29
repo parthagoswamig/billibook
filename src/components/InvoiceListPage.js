@@ -351,6 +351,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
         shipping_charges: parseFloat(form.shippingCharges) || 0,
         state_of_supply: form.stateOfSupply || null,
         total: finalTotal, paid: parseFloat(form.paid) || 0, balance: balanceVal, notes: form.notes,
+        status: balanceVal <= 0 ? 'paid' : parseFloat(form.paid) > 0 ? 'partial' : 'unpaid',
         last_payment_mode: parseFloat(form.paid) > 0 ? form.paymentMode : null,
         warehouse_id: form.warehouseId || null,
       }, validItems.map((i) => ({
