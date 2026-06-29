@@ -95,6 +95,13 @@
   font-size: 20px;
 }
 
+.stat-icon img,
+.stat-icon svg {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
 /* Color codes based on label */
 .stat-card:nth-child(1) .stat-icon { background: var(--accent-light); color: var(--accent); }
 .stat-card:nth-child(2) .stat-icon { background: var(--success-light); color: var(--success); }
