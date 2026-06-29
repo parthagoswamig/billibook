@@ -144,30 +144,6 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (!session || !supabase) return undefined;
-    
-    let timeoutId;
-    const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
-    
-    const resetTimer = () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        supabase.auth.signOut();
-        alert('You have been logged out due to inactivity.');
-      }, INACTIVITY_TIMEOUT);
-    };
-    
-    const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart'];
-    events.forEach(event => window.addEventListener(event, resetTimer));
-    
-    resetTimer();
-    
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      events.forEach(event => window.removeEventListener(event, resetTimer));
-    };
-  }, [session]);
 
   if (authLoading) return <div className="loading-screen">Loading...</div>;
 
