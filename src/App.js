@@ -115,6 +115,10 @@ function App() {
   const [onlineVersion, setOnlineVersion] = useState('');
 
   useEffect(() => {
+    // Only check for updates when running inside the native mobile container (Capacitor or local file scheme)
+    const isNative = !!window.Capacitor || window.location.protocol === 'file:';
+    if (!isNative) return;
+
     const checkUpdate = async () => {
       try {
         const res = await fetch(`https://khatape360.vercel.app/version.json?t=${Date.now()}`);
