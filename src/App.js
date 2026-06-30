@@ -117,7 +117,7 @@ function App() {
 
   useEffect(() => {
     // Only check for updates when running inside the native mobile container (Android/iOS)
-    const isNative = (window.Capacitor && window.Capacitor.platform !== 'web') || window.location.protocol === 'file:';
+    const isNative = (window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() !== 'web') || window.location.protocol === 'file:';
     if (!isNative) return;
 
     const checkUpdate = async () => {
