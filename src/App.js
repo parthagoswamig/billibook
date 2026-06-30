@@ -28,6 +28,7 @@ import DataMigration from './pages/DataMigration';
 import Security from './pages/Security';
 import PurchaseReturns from './pages/PurchaseReturns';
 import Inventory from './pages/Inventory';
+import { Browser } from '@capacitor/browser';
 import Accounting from './pages/Accounting';
 
 function ProtectedRoute({ element, requiredRole }) {
@@ -173,10 +174,14 @@ function App() {
             <div className="update-modal-buttons">
               <button 
                 className="update-btn primary-btn" 
-                onClick={() => {
+                onClick={async () => {
                   setUpdateAvailable(false);
                   if (window.Capacitor) {
-                    window.open(updateUrl, '_system');
+                    try {
+                      await Browser.open({ url: updateUrl });
+                    } catch (err) {
+                      window.open(updateUrl, '_system');
+                    }
                   } else {
                     window.open(updateUrl, '_blank');
                   }
