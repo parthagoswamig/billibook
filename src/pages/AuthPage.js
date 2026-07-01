@@ -1,6 +1,7 @@
 // src/pages/AuthPage.js
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../lib/AuthContext';
+import { trackVisit, getVisitStats } from '../lib/visitTracker';
 
 export default function AuthPage() {
   const { signIn, signUp } = useAuth();
@@ -9,6 +10,13 @@ export default function AuthPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
+  const [visitStats, setVisitStats] = useState(null);
+
+  // Track this visit and fetch stats on mount
+  useEffect(() => {
+    trackVisit();
+    getVisitStats().then(setVisitStats);
+  }, []);
 
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -40,8 +48,74 @@ export default function AuthPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1E3A5F 0%, #2563EB 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
-      <div style={{ width: 420, background: '#fff', borderRadius: 20, padding: 40, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1E3A5F 0%, #2563EB 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: "'Segoe UI', system-ui, sans-serif", gap: 20, padding: 16 }}>
+
+      {/* Live Visitor Counter — PUBLIC, visible to everyone */}
+      {visitStats !== null && (
+        <div style={{
+          display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center',
+          animation: 'fadeIn 0.6s ease',
+        }}>
+          {/* Today's Views */}
+          <div style={{
+            background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.25)', borderRadius: 14,
+            padding: '12px 22px', textAlign: 'center', minWidth: 130,
+          }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>
+              {visitStats.todayTotal.toLocaleString()}
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 3, fontWeight: 600, letterSpacing: 0.3 }}>
+              👁️ TODAY'S VIEWS
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 6 }}>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)' }}>🌐 Web: {visitStats.todayWeb}</span>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)' }}>📱 App: {visitStats.todayApp}</span>
+            </div>
+          </div>
+
+          {/* Total Views */}
+          <div style={{
+            background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.25)', borderRadius: 14,
+            padding: '12px 22px', textAlign: 'center', minWidth: 130,
+          }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#FBBF24', lineHeight: 1.1 }}>
+              {visitStats.total.toLocaleString()}
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 3, fontWeight: 600, letterSpacing: 0.3 }}>
+              🔥 TOTAL VIEWS
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 6 }}>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)' }}>🌐 Web: {visitStats.totalWeb}</span>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)' }}>📱 App: {visitStats.totalApp}</span>
+            </div>
+          </div>
+
+          {/* Live pulse indicator */}
+          <div style={{
+            background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.25)', borderRadius: 14,
+            padding: '12px 22px', textAlign: 'center', minWidth: 130,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{
+                display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+                background: '#4ADE80', boxShadow: '0 0 0 3px rgba(74,222,128,0.3)',
+                animation: 'pulse 1.5s infinite',
+              }} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#4ADE80' }}>LIVE</span>
+            </div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)', marginTop: 5 }}>
+              Tracking Web & App
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Login Card */}
+      <div style={{ width: '100%', maxWidth: 420, background: '#fff', borderRadius: 20, padding: 40, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
@@ -94,6 +168,17 @@ export default function AuthPage() {
           🔒 Your data is secure & private • Each business has separate data
         </div>
       </div>
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { box-shadow: 0 0 0 3px rgba(74,222,128,0.3); }
+          50% { box-shadow: 0 0 0 6px rgba(74,222,128,0.1); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }

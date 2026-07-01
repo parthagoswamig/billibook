@@ -6,6 +6,7 @@ import { useBusiness } from '../lib/BusinessContext';
 import { getDashboardStats } from '../lib/db';
 import { formatCurrency, formatDate, buildWhatsAppUrl } from '../lib/utils';
 import { useRole } from '../lib/RoleContext';
+import { getVisitStats } from '../lib/visitTracker';
 import './Dashboard.css';
 function Dashboard() {
   const { userId, loading: userLoading } = useUser();
@@ -15,7 +16,12 @@ function Dashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('month');
+  const [visitStats, setVisitStats] = useState(null);
   const fmt = (n) => formatCurrency(n, currency);
+
+  useEffect(() => {
+    getVisitStats().then(setVisitStats);
+  }, []);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -139,6 +145,44 @@ function Dashboard() {
           </article>
         ))}
       </div>
+
+      {/* Live App View Stats */}
+      {visitStats && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#4ADE80', boxShadow: '0 0 0 3px rgba(74,222,128,0.25)', animation: 'pulse-dot 1.5s infinite' }} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#374151', letterSpacing: 0.3 }}>LIVE APP STATS</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+            {/* Today Web */}
+            <div style={{ background: 'linear-gradient(135deg, #EFF6FF, #DBEAFE)', border: '1px solid #BFDBFE', borderRadius: 14, padding: '16px 20px' }}>
+              <div style={{ fontSize: 28, fontWeight: 800, color: '#1D4ED8' }}>{visitStats.todayWeb.toLocaleString()}</div>
+              <div style={{ fontSize: 12, color: '#3B82F6', fontWeight: 600, marginTop: 4 }}>🌐 Website Today</div>
+            </div>
+            {/* Today App */}
+            <div style={{ background: 'linear-gradient(135deg, #F0FDF4, #DCFCE7)', border: '1px solid #BBF7D0', borderRadius: 14, padding: '16px 20px' }}>
+              <div style={{ fontSize: 28, fontWeight: 800, color: '#15803D' }}>{visitStats.todayApp.toLocaleString()}</div>
+              <div style={{ fontSize: 12, color: '#16A34A', fontWeight: 600, marginTop: 4 }}>📱 Mobile App Today</div>
+            </div>
+            {/* Total Web */}
+            <div style={{ background: 'linear-gradient(135deg, #F5F3FF, #EDE9FE)', border: '1px solid #DDD6FE', borderRadius: 14, padding: '16px 20px' }}>
+              <div style={{ fontSize: 28, fontWeight: 800, color: '#6D28D9' }}>{visitStats.totalWeb.toLocaleString()}</div>
+              <div style={{ fontSize: 12, color: '#7C3AED', fontWeight: 600, marginTop: 4 }}>🌐 Website Total</div>
+            </div>
+            {/* Total App */}
+            <div style={{ background: 'linear-gradient(135deg, #FFF7ED, #FFEDD5)', border: '1px solid #FED7AA', borderRadius: 14, padding: '16px 20px' }}>
+              <div style={{ fontSize: 28, fontWeight: 800, color: '#C2410C' }}>{visitStats.totalApp.toLocaleString()}</div>
+              <div style={{ fontSize: 12, color: '#EA580C', fontWeight: 600, marginTop: 4 }}>📱 Mobile App Total</div>
+            </div>
+          </div>
+        </div>
+      )}
+      <style>{`
+        @keyframes pulse-dot {
+          0%, 100% { box-shadow: 0 0 0 3px rgba(74,222,128,0.25); }
+          50% { box-shadow: 0 0 0 6px rgba(74,222,128,0.1); }
+        }
+      `}</style>
 
       {/* Sales Chart */}
       <div className="chart-section">
