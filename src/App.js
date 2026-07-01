@@ -106,7 +106,7 @@ function AppShell() {
   );
 }
 
-const CURRENT_VERSION = "1.0.1";
+const CURRENT_VERSION = "2.0.0";
 
 function App() {
   const [session, setSession] = useState(null);
