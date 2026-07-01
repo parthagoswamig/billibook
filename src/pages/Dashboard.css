@@ -191,8 +191,8 @@
 }
 
 .legend-color {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 3px;
 }
 
@@ -201,18 +201,22 @@
 }
 
 .legend-color.expenses {
-  background: #A5B4FC;
+  background: #F97316;
 }
 
 .chart-container {
   padding-top: 10px;
+  overflow-x: auto;
 }
 
 .bar-chart {
   display: flex;
-  gap: 20px;
-  height: 200px;
+  gap: 12px;
+  height: 220px;
   align-items: flex-end;
+  min-width: 300px;
+  padding-bottom: 4px;
+  border-bottom: 2px solid #E5E7EB;
 }
 
 .chart-bar-group {
@@ -220,36 +224,63 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  min-width: 36px;
 }
 
 .bar-wrapper {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   height: 100%;
   align-items: flex-end;
   width: 100%;
-  max-width: 48px;
+  justify-content: center;
 }
 
 .bar {
-  flex: 1;
-  border-radius: 4px 4px 0 0;
+  width: 18px;
+  min-height: 4px;
+  border-radius: 5px 5px 0 0;
   position: relative;
-  transition: all 0.15s ease;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  cursor: pointer;
+}
+
+.bar:hover {
+  opacity: 0.85;
+  transform: scaleY(1.02);
+  transform-origin: bottom;
 }
 
 .sales-bar {
-  background: var(--accent);
+  background: linear-gradient(180deg, #6366F1 0%, #4338CA 100%);
+  box-shadow: 0 -2px 6px rgba(99,102,241,0.3);
 }
 
 .expenses-bar {
-  background: #EEF2FF;
-  border: 1px solid var(--border);
+  background: linear-gradient(180deg, #FB923C 0%, #EA580C 100%);
+  box-shadow: 0 -2px 6px rgba(249,115,22,0.3);
 }
 
 .bar-label {
   display: none;
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: #1E293B;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.bar:hover .bar-label {
+  display: block;
 }
 
 .bar-month {
@@ -257,6 +288,7 @@
   color: var(--text-muted);
   font-weight: 600;
   text-transform: uppercase;
+  text-align: center;
 }
 
 /* Split Grid */
