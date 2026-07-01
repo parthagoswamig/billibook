@@ -25,14 +25,14 @@ const mainLinks = [
   { to: '/products', label: '📦 Products', role: 'viewer' },
   { to: '/inventory', label: '🏬 Inventory', role: 'viewer' },
   { to: '/expenses', label: '💰 Expenses', role: 'viewer' },
-  { to: '/reports', label: '📈 Reports & GST', role: 'viewer' },
 ];
 
 const accountingLinks = [
-  { to: '/payments', label: '💳 Payments', role: 'accountant' },
-  { to: '/accounting', label: '🏦 Accounting Books', role: 'accountant' },
-  { to: '/migration', label: '🔄 Migration', role: 'accountant' },
-  { to: '/settings', label: '⚙️ Settings', role: 'accountant' },
+  { to: '/payments', label: '💳 Payments', role: 'viewer' },
+  { to: '/accounting', label: '🏦 Accounting Books', role: 'viewer' },
+  { to: '/migration', label: '🔄 Migration', role: 'viewer' },
+  { to: '/reports', label: '📈 Reports & GST', role: 'viewer' },
+  { to: '/settings', label: '⚙️ Settings', role: 'viewer' },
 ];
 
 function Sidebar({ onClose }) {
@@ -96,12 +96,10 @@ function Sidebar({ onClose }) {
           <nav className="sidebar-nav">{purchaseLinks.map(link)}</nav>
         </div>
 
-        {ok('accountant') && (
-          <div className="sidebar-section">
-            <p className="sidebar-section-label">Accounting</p>
-            <nav className="sidebar-nav">{accountingLinks.map(link)}</nav>
-          </div>
-        )}
+        <div className="sidebar-section">
+          <p className="sidebar-section-label">Accounting</p>
+          <nav className="sidebar-nav">{accountingLinks.map(link)}</nav>
+        </div>
 
         {canManageUsers() && (
           <div className="sidebar-section">
