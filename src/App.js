@@ -30,6 +30,7 @@ import PurchaseReturns from './pages/PurchaseReturns';
 import Inventory from './pages/Inventory';
 import { Browser } from '@capacitor/browser';
 import Accounting from './pages/Accounting';
+import { trackVisit } from './lib/visitTracker';
 
 function ProtectedRoute({ element, requiredRole }) {
   const { hasPermission, loading } = useRole();
@@ -115,6 +116,10 @@ function App() {
   const [updateUrl, setUpdateUrl] = useState('');
   const [onlineVersion, setOnlineVersion] = useState('');
 
+  // Track every visit — works for both logged-in and logged-out users
+  useEffect(() => {
+    trackVisit();
+  }, []);
   useEffect(() => {
     // Only check for updates when running inside the native mobile container (Android/iOS)
     const isNative = (window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() !== 'web') || window.location.protocol === 'file:';

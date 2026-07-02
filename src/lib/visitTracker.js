@@ -2,76 +2,108 @@
 // Tracks website and mobile app visits in Supabase
 import { supabase } from '../db';
 
-// Generate or get a persistent session ID for this browser session
-function getSessionId() {
-  const key = 'khatape_session_id';
-  let sid = sessionStorage.getItem(key);
-  if (!sid) {
-    sid = `${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
-    sessionStorage.setItem(key, sid);
+// Generate a persistent visit ID — uses localStorage so it survives app restarts
+// But creates a new one each day so daily counts work correctly
+function getVisitKey() {
+  const today = new Date().toISOString().slice(0, 10); // e.g. "2026-07-02"
+  const storageKey = 'khatape_visit_' + today;
+  let vid = localStorage.getItem(storageKey);
+  if (!vid) {
+    vid = `${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+    localStorage.setItem(storageKey, vid);
+    // Clean up yesterday's keys
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('khatape_visit_') && k !== storageKey) {
+        localStorage.removeItem(k);
+      }
+    });
+    return { vid, isNew: true };
   }
-  return sid;
+  return { vid, isNew: false };
 }
 
-// Detect platform: 'app' if running as installed APK/PWA, else 'web'
+// Detect platform reliably
+// - 'app' = running inside Capacitor/Android WebView
+// - 'web' = normal browser
 function detectPlatform() {
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-    || window.navigator.standalone === true;
-  const ua = navigator.userAgent || '';
-  const isAndroid = ua.includes('Android') && (isStandalone || ua.includes('KhataPe'));
-  return isAndroid || isStandalone ? 'app' : 'web';
+  try {
+    // Capacitor injects window.Capacitor in the WebView
+    if (
+      window.Capacitor &&
+      typeof window.Capacitor.getPlatform === 'function' &&
+      window.Capacitor.getPlatform() !== 'web'
+    ) {
+      return 'app';
+    }
+    // Fallback: check for Android WebView user agent with no Chrome version exposed
+    const ua = navigator.userAgent || '';
+    if (ua.includes('Android') && ua.includes('wv')) {
+      return 'app'; // wv = WebView flag
+    }
+    // PWA standalone mode
+    if (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true
+    ) {
+      return 'app';
+    }
+  } catch (e) {}
+  return 'web';
 }
 
-let _tracked = false; // Only track once per session load
+let _tracked = false; // Only track once per JS session (page load)
 
 export async function trackVisit() {
   if (_tracked) return;
   _tracked = true;
 
-  const sessionId = getSessionId();
+  const { vid, isNew } = getVisitKey();
+  
+  // Only insert if this is a new visit today (not already tracked today)
+  if (!isNew) return;
+
   const platform = detectPlatform();
 
   try {
-    await supabase.from('app_visits').insert({
-      session_id: sessionId,
+    const { error } = await supabase.from('app_visits').insert({
+      session_id: vid,
       platform,
       user_agent: navigator.userAgent?.substring(0, 200) || '',
     });
+    if (error) console.warn('Visit insert error:', error.message);
   } catch (e) {
-    // Silently fail — tracking should never break the app
     console.warn('Visit tracking failed:', e.message);
   }
 }
 
 export async function getVisitStats() {
   try {
-    // Today's start (midnight local time converted to UTC)
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
+    const todayISO = todayStart.toISOString();
 
-    const { data: allVisits, error } = await supabase
+    // Get today's visits
+    const { data: todayVisits, error: e1 } = await supabase
       .from('app_visits')
-      .select('created_at, platform');
+      .select('platform')
+      .gte('created_at', todayISO);
 
-    if (error) throw error;
+    // Get all-time visits
+    const { data: allVisits, error: e2 } = await supabase
+      .from('app_visits')
+      .select('platform');
 
-    const total = allVisits?.length || 0;
-    const todayVisits = allVisits?.filter(v => new Date(v.created_at) >= todayStart) || [];
-    const todayTotal = todayVisits.length;
-    const todayWeb = todayVisits.filter(v => v.platform === 'web').length;
-    const todayApp = todayVisits.filter(v => v.platform === 'app').length;
+    if (e1 || e2) throw (e1 || e2);
 
-    const totalWeb = allVisits?.filter(v => v.platform === 'web').length || 0;
-    const totalApp = allVisits?.filter(v => v.platform === 'app').length || 0;
+    const todayWeb = (todayVisits || []).filter(v => v.platform === 'web').length;
+    const todayApp = (todayVisits || []).filter(v => v.platform === 'app').length;
+    const todayTotal = todayWeb + todayApp;
 
-    return {
-      total,
-      totalWeb,
-      totalApp,
-      todayTotal,
-      todayWeb,
-      todayApp,
-    };
+    const totalWeb = (allVisits || []).filter(v => v.platform === 'web').length;
+    const totalApp = (allVisits || []).filter(v => v.platform === 'app').length;
+    const total = totalWeb + totalApp;
+
+    return { total, totalWeb, totalApp, todayTotal, todayWeb, todayApp };
   } catch (e) {
     console.warn('Failed to fetch visit stats:', e.message);
     return { total: 0, totalWeb: 0, totalApp: 0, todayTotal: 0, todayWeb: 0, todayApp: 0 };
