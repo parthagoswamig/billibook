@@ -1,20 +1,19 @@
 // src/pages/AuthPage.js
 import { useState, useEffect } from 'react';
 import { useAuth } from '../lib/AuthContext';
-import { trackVisit, getVisitStats } from '../lib/visitTracker';
+import { getVisitStats } from '../lib/visitTracker';
 
 export default function AuthPage() {
   const { signIn, signUp } = useAuth();
-  const [mode, setMode] = useState('login'); // 'login' | 'signup'
+  const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ email: '', password: '', businessName: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [visitStats, setVisitStats] = useState(null);
 
-  // Track this visit and fetch stats on mount
+  // Fetch login stats on mount (tracking is done in App.js on SIGNED_IN event)
   useEffect(() => {
-    trackVisit();
     getVisitStats().then(setVisitStats);
   }, []);
 
@@ -66,7 +65,7 @@ export default function AuthPage() {
               {visitStats.todayTotal.toLocaleString()}
             </div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 3, fontWeight: 600, letterSpacing: 0.3 }}>
-              👁️ TODAY'S VIEWS
+              📊 TODAY'S LOGINS
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 6 }}>
               <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)' }}>🌐 Web: {visitStats.todayWeb}</span>
@@ -84,7 +83,7 @@ export default function AuthPage() {
               {visitStats.total.toLocaleString()}
             </div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 3, fontWeight: 600, letterSpacing: 0.3 }}>
-              🔥 TOTAL VIEWS
+              🔥 TOTAL LOGINS
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 6 }}>
               <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)' }}>🌐 Web: {visitStats.totalWeb}</span>
@@ -108,7 +107,7 @@ export default function AuthPage() {
               <span style={{ fontSize: 13, fontWeight: 700, color: '#4ADE80' }}>LIVE</span>
             </div>
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)', marginTop: 5 }}>
-              Tracking Web & App
+              Web + App Logins
             </div>
           </div>
         </div>

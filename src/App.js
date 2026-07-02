@@ -30,7 +30,7 @@ import PurchaseReturns from './pages/PurchaseReturns';
 import Inventory from './pages/Inventory';
 import { Browser } from '@capacitor/browser';
 import Accounting from './pages/Accounting';
-import { trackVisit } from './lib/visitTracker';
+import { trackLogin } from './lib/visitTracker';
 
 function ProtectedRoute({ element, requiredRole }) {
   const { hasPermission, loading } = useRole();
@@ -116,37 +116,19 @@ function App() {
   const [updateUrl, setUpdateUrl] = useState('');
   const [onlineVersion, setOnlineVersion] = useState('');
 
-  // Track every visit — works for both logged-in and logged-out users
-  useEffect(() => {
-    trackVisit();
-  }, []);
-  useEffect(() => {
-    // Only check for updates when running inside the native mobile container (Android/iOS)
-    const isNative = (window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() !== 'web') || window.location.protocol === 'file:';
-    if (!isNative) return;
-
-    const checkUpdate = async () => {
-      try {
-        const res = await fetch(`https://khatape360.vercel.app/version.json?t=${Date.now()}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.version && data.version !== CURRENT_VERSION) {
-            setOnlineVersion(data.version);
-            setUpdateUrl(data.url || 'https://khatape360.vercel.app/KhataPe.apk');
-            setUpdateAvailable(true);
-          }
-        }
-      } catch (err) {
-        console.warn('Update check failed', err);
-      }
-    };
-    checkUpdate();
-  }, []);
-
+  // Track every login — fires on every successful sign-in (SIGNED_IN event)
   useEffect(() => {
     if (!supabase) { setAuthLoading(false); return undefined; }
-    supabase.auth.getSession().then(({ data: { session: s } }) => { setSession(s); setAuthLoading(false); });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      setSession(s);
+      setAuthLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+      setSession(s);
+      if (event === 'SIGNED_IN') {
+        trackLogin(); // Every login = +1 count (web or app)
+      }
+    });
     return () => subscription.unsubscribe();
   }, []);
 
