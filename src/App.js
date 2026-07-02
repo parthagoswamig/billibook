@@ -116,17 +116,22 @@ function App() {
   const [updateUrl, setUpdateUrl] = useState('');
   const [onlineVersion, setOnlineVersion] = useState('');
 
-  // Track every login — fires on every successful sign-in (SIGNED_IN event)
+  // Track unique user login — once per user per day (web & mobile app)
   useEffect(() => {
     if (!supabase) { setAuthLoading(false); return undefined; }
+
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
       setAuthLoading(false);
+      // Mobile app: session restored from storage (INITIAL_SESSION doesn't always fire)
+      if (s?.user?.id) trackLogin(s.user.id);
     });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
-      if (event === 'SIGNED_IN') {
-        trackLogin(); // Every login = +1 count (web or app)
+      // Track on: fresh login, mobile app opened (INITIAL_SESSION), token refresh (app resume)
+      if (s?.user?.id && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
+        trackLogin(s.user.id); // trackLogin handles dedup — once per user per day
       }
     });
     return () => subscription.unsubscribe();
