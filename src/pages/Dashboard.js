@@ -68,6 +68,11 @@ function Dashboard() {
   // Simple chart data visualization
   const salesData = stats?.chartData || [];
   const maxSales = Math.max(1, ...salesData.map(d => Math.max(d.sales, d.expenses)));
+  const getBarHeight = (value) => {
+    if (!value || value <= 0) return '0%';
+    const scaledHeight = (value / maxSales) * 100;
+    return `${Math.max(scaledHeight, 8)}%`;
+  };
 
   return (
     <PageSection eyebrow="Overview" title="Dashboard" description="Live business snapshot with advanced analytics.">
@@ -170,14 +175,14 @@ function Dashboard() {
                   <div className="bar-wrapper">
                     <div 
                       className="bar sales-bar"
-                      style={{ height: `${(data.sales / maxSales) * 100}%` }}
+                      style={{ height: getBarHeight(data.sales) }}
                       title={`Sales: ${fmt(data.sales)}`}
                     >
                       <span className="bar-label">{fmt(data.sales)}</span>
                     </div>
                     <div 
                       className="bar expenses-bar"
-                      style={{ height: `${(data.expenses / maxSales) * 100}%` }}
+                      style={{ height: getBarHeight(data.expenses) }}
                       title={`Expenses: ${fmt(data.expenses)}`}
                     >
                       <span className="bar-label">{fmt(data.expenses)}</span>

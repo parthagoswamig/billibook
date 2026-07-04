@@ -5,38 +5,38 @@ import { useRole } from '../lib/RoleContext';
 import { useUser } from '../lib/useUser';
 
 const salesLinks = [
-  { to: '/invoices', label: '📄 Sales Invoice', role: 'viewer' },
-  { to: '/quotations', label: '📝 Quotation', role: 'viewer' },
-  { to: '/estimates', label: '📋 Estimate', role: 'viewer' },
-  { to: '/proforma', label: '📑 Proforma', role: 'viewer' },
-  { to: '/delivery-challans', label: '🚚 Delivery Challan', role: 'viewer' },
-  { to: '/credit-notes', label: '↩️ Credit Note', role: 'viewer' },
+  { to: '/invoices', label: '📄 Sales Invoice', role: 'viewer', module: 'invoices' },
+  { to: '/quotations', label: '📝 Quotation', role: 'viewer', module: 'invoices' },
+  { to: '/estimates', label: '📋 Estimate', role: 'viewer', module: 'invoices' },
+  { to: '/proforma', label: '📑 Proforma', role: 'viewer', module: 'invoices' },
+  { to: '/delivery-challans', label: '🚚 Delivery Challan', role: 'viewer', module: 'invoices' },
+  { to: '/credit-notes', label: '↩️ Credit Note', role: 'viewer', module: 'invoices' },
 ];
 
 const purchaseLinks = [
-  { to: '/purchases', label: '🛒 Purchase Bill', role: 'viewer' },
-  { to: '/purchase-returns', label: '🔄 Purchase Return', role: 'viewer' },
-  { to: '/debit-notes', label: '↪️ Debit Note', role: 'viewer' },
+  { to: '/purchases', label: '🛒 Purchase Bill', role: 'viewer', module: 'invoices' },
+  { to: '/purchase-returns', label: '🔄 Purchase Return', role: 'viewer', module: 'invoices' },
+  { to: '/debit-notes', label: '↪️ Debit Note', role: 'viewer', module: 'invoices' },
 ];
 
 const mainLinks = [
   { to: '/dashboard', label: '📊 Dashboard', role: 'viewer' },
-  { to: '/customers', label: '👥 Parties', role: 'viewer' },
-  { to: '/products', label: '📦 Products', role: 'viewer' },
-  { to: '/inventory', label: '🏬 Inventory', role: 'viewer' },
-  { to: '/expenses', label: '💰 Expenses', role: 'viewer' },
+  { to: '/customers', label: '👥 Parties', role: 'viewer', module: 'customers' },
+  { to: '/products', label: '📦 Products', role: 'viewer', module: 'products' },
+  { to: '/inventory', label: '🏬 Inventory', role: 'viewer', module: 'products' },
+  { to: '/expenses', label: '💰 Expenses', role: 'viewer', module: 'expenses' },
 ];
 
 const accountingLinks = [
-  { to: '/payments', label: '💳 Payments', role: 'viewer' },
-  { to: '/accounting', label: '🏦 Accounting Books', role: 'viewer' },
-  { to: '/migration', label: '🔄 Migration', role: 'viewer' },
-  { to: '/reports', label: '📈 Reports & GST', role: 'viewer' },
-  { to: '/settings', label: '⚙️ Settings', role: 'viewer' },
+  { to: '/payments', label: '💳 Payments', role: 'accountant', module: 'accounting' },
+  { to: '/accounting', label: '🏦 Accounting Books', role: 'accountant', module: 'accounting' },
+  { to: '/migration', label: '🔄 Migration', role: 'accountant', module: 'accounting' },
+  { to: '/reports', label: '📈 Reports & GST', role: 'viewer', module: 'accounting' },
+  { to: '/settings', label: '⚙️ Settings', role: 'accountant' },
 ];
 
 function Sidebar({ onClose }) {
-  const { userRole, canManageUsers } = useRole();
+  const { userRole, canManageUsers, hasModulePermission } = useRole();
   const { user } = useUser();
   const levels = { admin: 3, accountant: 2, viewer: 1 };
   const ok = (role) => (levels[userRole] || 0) >= (levels[role] || 0);
@@ -46,7 +46,12 @@ function Sidebar({ onClose }) {
     return email.split('@')[0].substring(0, 2).toUpperCase();
   };
 
-  const link = (l) => ok(l.role) && (
+  const canSeeLink = (l) => {
+    if (l.module && userRole === 'custom') return hasModulePermission(l.module, 'view');
+    return ok(l.role);
+  };
+
+  const link = (l) => canSeeLink(l) && (
     <NavLink 
       key={l.to} 
       to={l.to} 

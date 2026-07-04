@@ -205,18 +205,20 @@
 }
 
 .chart-container {
-  padding-top: 10px;
+  padding-top: 12px;
   overflow-x: auto;
 }
 
 .bar-chart {
   display: flex;
-  gap: 12px;
-  height: 220px;
+  gap: 18px;
+  height: 320px;
   align-items: flex-end;
-  min-width: 300px;
-  padding-bottom: 4px;
+  min-width: 560px;
+  padding: 24px 10px 10px;
   border-bottom: 2px solid #E5E7EB;
+  background: linear-gradient(180deg, #F8FAFF 0%, #FFFFFF 100%);
+  border-radius: 18px;
 }
 
 .chart-bar-group {
@@ -224,13 +226,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  min-width: 36px;
+  gap: 10px;
+  min-width: 64px;
 }
 
 .bar-wrapper {
   display: flex;
-  gap: 4px;
+  gap: 10px;
   height: 100%;
   align-items: flex-end;
   width: 100%;
@@ -238,9 +240,9 @@
 }
 
 .bar {
-  width: 18px;
-  min-height: 4px;
-  border-radius: 5px 5px 0 0;
+  width: 28px;
+  min-height: 10px;
+  border-radius: 10px 10px 0 0;
   position: relative;
   transition: opacity 0.15s ease, transform 0.15s ease;
   cursor: pointer;
@@ -263,20 +265,21 @@
 }
 
 .bar-label {
-  display: none;
+  display: block;
   position: absolute;
-  top: -24px;
+  top: -30px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
   background: #1E293B;
   color: white;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
   pointer-events: none;
   z-index: 10;
+  opacity: 0.9;
 }
 
 .bar:hover .bar-label {
@@ -284,11 +287,41 @@
 }
 
 .bar-month {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-muted);
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   text-align: center;
+  letter-spacing: 0.6px;
+}
+
+@media (max-width: 768px) {
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .bar-chart {
+    height: 280px;
+    min-width: 480px;
+    gap: 14px;
+    padding: 18px 8px 10px;
+  }
+
+  .bar {
+    width: 22px;
+  }
+
+  .chart-bar-group {
+    min-width: 54px;
+  }
+
+  .bar-label {
+    font-size: 10px;
+    top: -28px;
+    padding: 3px 6px;
+  }
 }
 
 /* Split Grid */

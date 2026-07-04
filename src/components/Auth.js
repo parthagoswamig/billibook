@@ -41,7 +41,7 @@ function Auth() {
         const { data, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
         if (loginError) setError(loginError.message);
         else if (data.user) {
-          await ensureUserRole(data.user.id);
+          await ensureUserRole(data.user.id, 'viewer');
           await applyTeamInvite(data.user.id, email);
         }
       } else {
@@ -56,7 +56,7 @@ function Auth() {
             await ensureUserRole(data.user.id, 'admin');
             await saveProfile(data.user.id, { business_name: businessName.trim(), email });
           }
-          setMessage('✓ Account created! Check your email to confirm, then log in.');
+          setMessage('\u2713 Account created! Check your email to confirm, then log in.');
           setEmail('');
           setPassword('');
           setBusinessName('');
@@ -104,7 +104,7 @@ function Auth() {
               <input type="password" placeholder={mode === 'signup' ? 'At least 6 characters' : 'Enter password'} value={password} onChange={(e) => setPassword(e.target.value)} minLength={mode === 'signup' ? 6 : undefined} className="form-input" required />
             </label>
             {error && <div className="form-message form-error"><span className="message-icon">⚠️</span>{error}</div>}
-            {message && <div className="form-message form-success"><span className="message-icon">✓</span>{message}</div>}
+            {message && <div className="form-message form-success"><span className="message-icon">\u2713</span>{message}</div>}
             <button className="submit-button" disabled={loading} type="submit">
               {loading ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Create Account'}
             </button>

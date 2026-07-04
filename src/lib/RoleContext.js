@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useUser } from './useUser';
-import { getUserRole, ensureUserRole, getTenantId } from './db';
+import { getUserRole, ensureUserRole, getTenantId, getCustomPermissionsForUser } from './db';
 
 const RoleContext = createContext();
 
@@ -12,9 +12,48 @@ export const useRole = () => {
 
 export function RoleProvider({ children }) {
   const { userId } = useUser();
-  const [userRole, setUserRole] = useState('admin');
+  const [userRole, setUserRole] = useState('viewer');
   const [tenantId, setTenantId] = useState(null);
+  const [customPermissions, setCustomPermissions] = useState({});
   const [loading, setLoading] = useState(true);
+
+  const moduleAliases = {
+    payments: 'accounting',
+    reports: 'accounting',
+    migration: 'accounting',
+    settings: 'accounting',
+    purchases: 'invoices',
+    inventory: 'products',
+    party_ledger: 'customers',
+  };
+
+  const resolveModule = (module) => moduleAliases[module] || module;
+
+  const inferModuleFromPath = () => {
+    if (typeof window === 'undefined') return null;
+    const path = window.location.pathname || '';
+    if (path.startsWith('/customers') || path.startsWith('/ledger/')) return 'customers';
+    if (path.startsWith('/products') || path.startsWith('/inventory')) return 'products';
+    if (path.startsWith('/expenses')) return 'expenses';
+    if (
+      path.startsWith('/invoices') ||
+      path.startsWith('/quotations') ||
+      path.startsWith('/estimates') ||
+      path.startsWith('/proforma') ||
+      path.startsWith('/delivery-challans') ||
+      path.startsWith('/credit-notes') ||
+      path.startsWith('/purchases') ||
+      path.startsWith('/debit-notes') ||
+      path.startsWith('/purchase-returns')
+    ) return 'invoices';
+    if (
+      path.startsWith('/reports') ||
+      path.startsWith('/accounting') ||
+      path.startsWith('/payments') ||
+      path.startsWith('/migration')
+    ) return 'accounting';
+    return null;
+  };
 
   useEffect(() => {
     const fetchRole = async () => {
@@ -23,13 +62,29 @@ export function RoleProvider({ children }) {
         return;
       }
       try {
-        await ensureUserRole(userId, 'admin');
+        await ensureUserRole(userId, 'viewer');
         const role = await getUserRole(userId);
         setUserRole(role);
         const tId = await getTenantId(userId);
         setTenantId(tId);
-      } catch {
-        setUserRole('admin');
+        setCustomPermissions({});
+        if (role === 'custom') {
+          const perms = await getCustomPermissionsForUser(userId);
+          const permMap = {};
+          if (perms) {
+            perms.forEach(p => {
+              permMap[p.module_name] = {
+                read: p.can_read,
+                write: p.can_write,
+                delete: p.can_delete
+              };
+            });
+          }
+          setCustomPermissions(permMap);
+        }
+      } catch (err) {
+        console.error('Error fetching user role, defaulting to viewer:', err);
+        setUserRole('viewer');
         setTenantId(userId);
       } finally {
         setLoading(false);
@@ -39,9 +94,37 @@ export function RoleProvider({ children }) {
   }, [userId]);
 
   const roleHierarchy = { admin: 3, accountant: 2, viewer: 1 };
-  const hasPermission = (requiredRole) => (roleHierarchy[userRole] || 0) >= (roleHierarchy[requiredRole] || 0);
+  const hasPermission = (requiredRole) => {
+    if (userRole === 'admin') return true;
+    if (userRole === 'custom') {
+      // Custom roles can access viewer or accountant features if allowed by their matrix
+      if (requiredRole === 'viewer') return true; 
+      return false; // For raw hierarchy checks, default custom roles below accountant
+    }
+    return (roleHierarchy[userRole] || 0) >= (roleHierarchy[requiredRole] || 0);
+  };
+
+  const hasModulePermission = (module, action = 'view') => {
+    const resolvedModule = resolveModule(module);
+    if (!resolvedModule) return false;
+    if (userRole === 'admin') return true;
+    if (userRole === 'custom') {
+      const perms = customPermissions[resolvedModule];
+      if (!perms) return false;
+      if (action === 'delete') return !!perms.delete;
+      if (action === 'write' || action === 'create' || action === 'edit' || action === 'update') return !!perms.write;
+      return !!perms.read;
+    }
+    if (userRole === 'accountant') {
+      return resolvedModule !== 'security' && resolvedModule !== 'team_invites' && resolvedModule !== 'user_roles';
+    }
+    return action === 'view' || action === 'read';
+  };
 
   const checkPermission = (action, entity) => {
+    if (userRole === 'admin') {
+      return true;
+    }
     if (userRole === 'viewer') {
       return action === 'read' || action === 'view';
     }
@@ -51,8 +134,11 @@ export function RoleProvider({ children }) {
       }
       return true;
     }
-    if (userRole === 'admin') {
-      return true;
+    if (userRole === 'custom') {
+      if (entity === 'users' || entity === 'user_roles' || entity === 'team_invites' || entity === 'security') {
+        return false;
+      }
+      return hasModulePermission(entity, action);
     }
     return false;
   };
@@ -61,13 +147,27 @@ export function RoleProvider({ children }) {
     <RoleContext.Provider value={{
       userRole,
       tenantId,
+      customPermissions,
       loading,
       hasPermission,
+      hasModulePermission,
       checkPermission,
-      canCreate: () => hasPermission('accountant'),
-      canEdit: () => hasPermission('accountant'),
-      canDelete: () => hasPermission('accountant'),
-      canViewReports: () => hasPermission('viewer'),
+      canCreate: (module) => {
+        if (module) return hasModulePermission(module, 'write');
+        if (userRole === 'custom') return hasModulePermission(inferModuleFromPath(), 'write');
+        return hasPermission('accountant');
+      },
+      canEdit: (module) => {
+        if (module) return hasModulePermission(module, 'write');
+        if (userRole === 'custom') return hasModulePermission(inferModuleFromPath(), 'write');
+        return hasPermission('accountant');
+      },
+      canDelete: (module) => {
+        if (module) return hasModulePermission(module, 'delete');
+        if (userRole === 'custom') return hasModulePermission(inferModuleFromPath(), 'delete');
+        return hasPermission('accountant');
+      },
+      canViewReports: () => userRole === 'admin' || userRole === 'accountant' || userRole === 'viewer' || (userRole === 'custom' && !!customPermissions['accounting']?.read),
       canManageUsers: () => hasPermission('admin'),
     }}>
       {children}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PageSection from '../components/PageSection';
 import { useUser } from '../lib/useUser';
+import { useRole } from '../lib/RoleContext';
 import { supabase } from '../db';
 import { getMigrationJobs, rollbackMigrationJob } from '../lib/db';
 import './DataMigration.css';
@@ -157,6 +158,8 @@ function parseCSV(text) {
 
 function DataMigration() {
   const { userId } = useUser();
+  const { tenantId } = useRole();
+  const activeTenantId = tenantId || userId;
   const [step, setStep] = useState(1); // Steps: 1 (Upload), 2 (Map), 3 (Preview & Config), 4 (Importing), 5 (Summary)
   
   // Dashboard & History Stats
@@ -176,14 +179,14 @@ function DataMigration() {
   const [generalError, setGeneralError] = useState('');
 
   useEffect(() => {
-    if (userId) {
+    if (activeTenantId) {
       loadHistoryJobs();
     }
-  }, [userId]);
+  }, [activeTenantId]);
 
   const loadHistoryJobs = async () => {
     try {
-      const data = await getMigrationJobs(userId);
+      const data = await getMigrationJobs(activeTenantId);
       setHistoryJobs(data || []);
 
       // Calculate stats
@@ -314,7 +317,7 @@ function DataMigration() {
       
       try {
         if (f.targetType === 'customers' || f.targetType === 'suppliers') {
-          const { data } = await supabase.from('customers').select('id, name, phone, gstin, email').eq('user_id', userId);
+          const { data } = await supabase.from('customers').select('id, name, phone, gstin, email').eq('user_id', activeTenantId);
           (data || []).forEach(row => {
             if (row.phone) existingSet.add(row.phone.toLowerCase().replace(/\s+/g, ''));
             if (row.gstin) existingSet.add(row.gstin.toLowerCase().replace(/\s+/g, ''));
@@ -322,14 +325,14 @@ function DataMigration() {
             existingMap[row.name.toLowerCase()] = row.id;
           });
         } else if (f.targetType === 'products') {
-          const { data } = await supabase.from('products').select('id, name, hsn').eq('user_id', userId);
+          const { data } = await supabase.from('products').select('id, name, hsn').eq('user_id', activeTenantId);
           (data || []).forEach(row => {
             existingSet.add(row.name.toLowerCase().trim());
             if (row.hsn) existingSet.add(row.hsn.toLowerCase().trim());
             existingMap[row.name.toLowerCase()] = row.id;
           });
         } else if (f.targetType === 'invoices') {
-          const { data } = await supabase.from('invoices').select('id, invoice_no').eq('user_id', userId).eq('type', 'sale');
+          const { data } = await supabase.from('invoices').select('id, invoice_no').eq('user_id', activeTenantId).eq('type', 'sale');
           (data || []).forEach(row => {
             existingSet.add(row.invoice_no.toLowerCase().trim());
           });
@@ -461,7 +464,7 @@ function DataMigration() {
         const { data: job, error: jobErr } = await supabase
           .from('migration_jobs')
           .insert([{
-            user_id: userId,
+            user_id: activeTenantId,
             source_software: f.preset.toUpperCase(),
             import_type: f.targetType.toUpperCase(),
             file_name: f.name,
@@ -487,10 +490,10 @@ function DataMigration() {
       const customerMap = {};
       const productMap = {};
       try {
-        const { data: customerList } = await supabase.from('customers').select('id, name').eq('user_id', userId);
+        const { data: customerList } = await supabase.from('customers').select('id, name').eq('user_id', activeTenantId);
         (customerList || []).forEach(c => { customerMap[c.name.toLowerCase()] = c.id; });
 
-        const { data: productList } = await supabase.from('products').select('id, name').eq('user_id', userId);
+        const { data: productList } = await supabase.from('products').select('id, name').eq('user_id', activeTenantId);
         (productList || []).forEach(p => { productMap[p.name.toLowerCase()] = p.id; });
       } catch (err) {
         console.error('Pre-import fetch error:', err);
@@ -526,7 +529,7 @@ function DataMigration() {
                   const { data: dupRecord } = await supabase
                     .from('customers')
                     .select('id')
-                    .eq('user_id', userId)
+                    .eq('user_id', activeTenantId)
                     .or(`phone.eq.${item.data.phone},email.eq.${item.data.email},gstin.eq.${item.data.gstin}`)
                     .limit(1)
                     .maybeSingle();
@@ -543,7 +546,7 @@ function DataMigration() {
               // Create New
               const { data: newCust, error } = await supabase
                 .from('customers')
-                .insert([{ ...item.data, type: partyType, user_id: userId, migration_job_id: jobId }])
+                .insert([{ ...item.data, type: partyType, user_id: activeTenantId, migration_job_id: jobId }])
                 .select()
                 .single();
 
@@ -561,7 +564,7 @@ function DataMigration() {
                   const { data: dupRecord } = await supabase
                     .from('products')
                     .select('id')
-                    .eq('user_id', userId)
+                    .eq('user_id', activeTenantId)
                     .eq('name', item.data.name)
                     .limit(1)
                     .maybeSingle();
@@ -586,7 +589,7 @@ function DataMigration() {
               const { data: newProd, error } = await supabase
                 .from('products')
                 .insert([{
-                  user_id: userId,
+                  user_id: activeTenantId,
                   name: item.data.name,
                   hsn: item.data.hsn,
                   gst: parseFloat(item.data.gst) || 18,
@@ -613,7 +616,7 @@ function DataMigration() {
                   const { data: dupRecord } = await supabase
                     .from('invoices')
                     .select('id')
-                    .eq('user_id', userId)
+                    .eq('user_id', activeTenantId)
                     .eq('invoice_no', item.data.invoice_no)
                     .limit(1)
                     .maybeSingle();
@@ -640,7 +643,7 @@ function DataMigration() {
               if (!customerId && item.data.customer_name) {
                 const { data: newCust, error: custErr } = await supabase
                   .from('customers')
-                  .insert([{ name: item.data.customer_name, type: 'customer', user_id: userId, migration_job_id: jobId }])
+                  .insert([{ name: item.data.customer_name, type: 'customer', user_id: activeTenantId, migration_job_id: jobId }])
                   .select()
                   .single();
 
@@ -659,7 +662,7 @@ function DataMigration() {
               const { data: newInv, error } = await supabase
                 .from('invoices')
                 .insert([{
-                  user_id: userId,
+                  user_id: activeTenantId,
                   invoice_no: item.data.invoice_no,
                   type: 'sale',
                   document_kind: 'sale_invoice',
@@ -685,7 +688,7 @@ function DataMigration() {
               const { data: newExp, error } = await supabase
                 .from('expenses')
                 .insert([{
-                  user_id: userId,
+                  user_id: activeTenantId,
                   category: item.data.category,
                   amount: parseFloat(item.data.amount) || 0,
                   date: item.data.date || new Date().toISOString().split('T')[0],

@@ -32,9 +32,13 @@ import { Browser } from '@capacitor/browser';
 import Accounting from './pages/Accounting';
 import { trackLogin } from './lib/visitTracker';
 
-function ProtectedRoute({ element, requiredRole }) {
-  const { hasPermission, loading } = useRole();
+function ProtectedRoute({ element, requiredRole, module }) {
+  const { hasPermission, hasModulePermission, loading, userRole } = useRole();
   if (loading) return <div className="loading-screen">Loading...</div>;
+  if (userRole === 'custom' && module) {
+    if (!hasModulePermission(module, 'view')) return <Navigate to="/dashboard" replace />;
+    return element;
+  }
   if (!hasPermission(requiredRole)) return <Navigate to="/dashboard" replace />;
   return element;
 }
@@ -70,36 +74,36 @@ function AppShell() {
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/invoices" element={V(<Invoices />)} />
-          <Route path="/invoices/:id" element={V(<InvoiceDetail />)} />
-          <Route path="/quotations" element={V(<Quotations />)} />
-          <Route path="/quotations/:id" element={V(<InvoiceDetail />)} />
-          <Route path="/estimates" element={V(<Estimates />)} />
-          <Route path="/estimates/:id" element={V(<InvoiceDetail />)} />
-          <Route path="/proforma" element={V(<Proforma />)} />
-          <Route path="/proforma/:id" element={V(<InvoiceDetail />)} />
-          <Route path="/delivery-challans" element={V(<DeliveryChallans />)} />
-          <Route path="/delivery-challans/:id" element={V(<InvoiceDetail />)} />
-          <Route path="/credit-notes" element={V(<CreditNotes />)} />
-          <Route path="/credit-notes/:id" element={V(<InvoiceDetail />)} />
-          <Route path="/purchases" element={V(<Purchases />)} />
-          <Route path="/purchases/:id" element={V(<InvoiceDetail />)} />
-          <Route path="/debit-notes" element={V(<DebitNotes />)} />
-          <Route path="/debit-notes/:id" element={V(<InvoiceDetail />)} />
-          <Route path="/purchase-returns" element={V(<PurchaseReturns />)} />
-          <Route path="/purchase-returns/:id" element={V(<InvoiceDetail />)} />
-          <Route path="/customers" element={V(<Customers />)} />
-          <Route path="/ledger/:partyId" element={V(<PartyLedger />)} />
-          <Route path="/products" element={V(<Products />)} />
-          <Route path="/inventory" element={V(<Inventory />)} />
-          <Route path="/expenses" element={V(<Expenses />)} />
-          <Route path="/reports" element={V(<Reports />)} />
-          <Route path="/accounting" element={A(<Accounting />)} />
-          <Route path="/payments" element={A(<Payments />)} />
+          <Route path="/invoices" element={<ProtectedRoute element={<Invoices />} requiredRole="viewer" module="invoices" />} />
+          <Route path="/invoices/:id" element={<ProtectedRoute element={<InvoiceDetail />} requiredRole="viewer" module="invoices" />} />
+          <Route path="/quotations" element={<ProtectedRoute element={<Quotations />} requiredRole="viewer" module="invoices" />} />
+          <Route path="/quotations/:id" element={<ProtectedRoute element={<InvoiceDetail />} requiredRole="viewer" module="invoices" />} />
+          <Route path="/estimates" element={<ProtectedRoute element={<Estimates />} requiredRole="viewer" module="invoices" />} />
+          <Route path="/estimates/:id" element={<ProtectedRoute element={<InvoiceDetail />} requiredRole="viewer" module="invoices" />} />
+          <Route path="/proforma" element={<ProtectedRoute element={<Proforma />} requiredRole="viewer" module="invoices" />} />
+          <Route path="/proforma/:id" element={<ProtectedRoute element={<InvoiceDetail />} requiredRole="viewer" module="invoices" />} />
+          <Route path="/delivery-challans" element={<ProtectedRoute element={<DeliveryChallans />} requiredRole="viewer" module="invoices" />} />
+          <Route path="/delivery-challans/:id" element={<ProtectedRoute element={<InvoiceDetail />} requiredRole="viewer" module="invoices" />} />
+          <Route path="/credit-notes" element={<ProtectedRoute element={<CreditNotes />} requiredRole="viewer" module="invoices" />} />
+          <Route path="/credit-notes/:id" element={<ProtectedRoute element={<InvoiceDetail />} requiredRole="viewer" module="invoices" />} />
+          <Route path="/purchases" element={<ProtectedRoute element={<Purchases />} requiredRole="viewer" module="invoices" />} />
+          <Route path="/purchases/:id" element={<ProtectedRoute element={<InvoiceDetail />} requiredRole="viewer" module="invoices" />} />
+          <Route path="/debit-notes" element={<ProtectedRoute element={<DebitNotes />} requiredRole="viewer" module="invoices" />} />
+          <Route path="/debit-notes/:id" element={<ProtectedRoute element={<InvoiceDetail />} requiredRole="viewer" module="invoices" />} />
+          <Route path="/purchase-returns" element={<ProtectedRoute element={<PurchaseReturns />} requiredRole="viewer" module="invoices" />} />
+          <Route path="/purchase-returns/:id" element={<ProtectedRoute element={<InvoiceDetail />} requiredRole="viewer" module="invoices" />} />
+          <Route path="/customers" element={<ProtectedRoute element={<Customers />} requiredRole="viewer" module="customers" />} />
+          <Route path="/ledger/:partyId" element={<ProtectedRoute element={<PartyLedger />} requiredRole="viewer" module="customers" />} />
+          <Route path="/products" element={<ProtectedRoute element={<Products />} requiredRole="viewer" module="products" />} />
+          <Route path="/inventory" element={<ProtectedRoute element={<Inventory />} requiredRole="viewer" module="products" />} />
+          <Route path="/expenses" element={<ProtectedRoute element={<Expenses />} requiredRole="viewer" module="expenses" />} />
+          <Route path="/reports" element={<ProtectedRoute element={<Reports />} requiredRole="viewer" module="accounting" />} />
+          <Route path="/accounting" element={<ProtectedRoute element={<Accounting />} requiredRole="accountant" module="accounting" />} />
+          <Route path="/payments" element={<ProtectedRoute element={<Payments />} requiredRole="accountant" module="accounting" />} />
           <Route path="/settings" element={A(<Settings />)} />
           <Route path="/team" element={D(<Team />)} />
           <Route path="/security" element={D(<Security />)} />
-          <Route path="/migration" element={A(<DataMigration />)} />
+          <Route path="/migration" element={<ProtectedRoute element={<DataMigration />} requiredRole="accountant" module="accounting" />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </main>
@@ -135,6 +139,31 @@ function App() {
       }
     });
     return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function checkForUpdate() {
+      try {
+        const response = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!isMounted || !data?.version) return;
+        if (data.version !== CURRENT_VERSION) {
+          setOnlineVersion(data.version);
+          setUpdateUrl(data.url || '/KhataPe.apk');
+          setUpdateAvailable(true);
+        }
+      } catch (_err) {
+        // Ignore update lookup failures.
+      }
+    }
+
+    checkForUpdate();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
 
@@ -193,4 +222,3 @@ function App() {
 }
 
 export default App;
-

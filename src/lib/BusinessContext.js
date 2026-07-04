@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRole } from './RoleContext';
 import { getProfile } from './db';
 
-const BusinessContext = createContext({ profile: null, currency: '₹' });
+const BusinessContext = createContext({ profile: null, currency: '\u20B9' });
 
 export function BusinessProvider({ children }) {
   const { tenantId } = useRole();
@@ -14,7 +14,7 @@ export function BusinessProvider({ children }) {
   }, [tenantId]);
 
   return (
-    <BusinessContext.Provider value={{ profile, currency: profile?.currency_symbol || '₹', refresh: () => getProfile(tenantId).then(setProfile) }}>
+    <BusinessContext.Provider value={{ profile, currency: profile?.currency_symbol || '\u20B9', refresh: () => getProfile(tenantId).then(setProfile) }}>
       {children}
     </BusinessContext.Provider>
   );

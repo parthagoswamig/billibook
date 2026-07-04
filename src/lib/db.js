@@ -15,6 +15,23 @@ export function invalidateDashboardCache(tenantId) {
   });
 }
 
+const ENTITY_MODULE_MAP = {
+  invoices: 'invoices',
+  invoice_items: 'invoices',
+  invoice_payments: 'invoices',
+  recurring_invoices: 'invoices',
+  payment_reminders: 'invoices',
+  products: 'products',
+  product_categories: 'products',
+  warehouses: 'products',
+  warehouse_stocks: 'products',
+  customers: 'customers',
+  expenses: 'expenses',
+  chart_of_accounts: 'accounting',
+  journal_entries: 'accounting',
+  journal_items: 'accounting',
+};
+
 export async function verifyWritePermission(action, entity, entityId = null) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Unauthorized');
@@ -34,7 +51,7 @@ export async function verifyWritePermission(action, entity, entityId = null) {
   }
   
   // Accountant cannot write to user_roles or team_invites
-  if (role === 'accountant' && (entity === 'user_roles' || entity === 'team_invites')) {
+  if (role === 'accountant' && (entity === 'user_roles' || entity === 'team_invites' || entity === 'custom_roles')) {
     await supabase.from('audit_logs').insert([{
       user_id: user.id,
       action: 'failed_access',
@@ -43,6 +60,30 @@ export async function verifyWritePermission(action, entity, entityId = null) {
       details: { action, reason: 'Accountant tried to modify admin settings', raw_entity_id: entityId }
     }]);
     throw new Error('Permission denied: Accountants cannot modify user roles or team settings.');
+  }
+
+  // Custom roles write enforcement
+  if (role === 'custom') {
+    const mappedModule = ENTITY_MODULE_MAP[entity];
+    if (!mappedModule) {
+      // Reject modification of settings (profile, team, roles, security, etc.)
+      throw new Error(`Permission denied: Custom roles cannot modify settings or '${entity}' entity.`);
+    }
+
+    const perms = await getCustomPermissionsForUser(user.id);
+    const modPerm = perms ? perms.find(p => p.module_name === mappedModule) : null;
+    
+    const isAllowed = action === 'delete' ? !!modPerm?.can_delete : !!modPerm?.can_write;
+    if (!isAllowed) {
+      await supabase.from('audit_logs').insert([{
+        user_id: user.id,
+        action: 'failed_access',
+        entity_type: entity,
+        entity_id: entityId && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(entityId) ? entityId : null,
+        details: { action, reason: `Custom role lacks ${action} permission on ${entity}`, raw_entity_id: entityId }
+      }]);
+      throw new Error(`Permission denied: Your custom role does not have permission to ${action} ${mappedModule}.`);
+    }
   }
   
   return user;
@@ -1641,7 +1682,7 @@ export async function getReportsSummary(userId, fromDate, toDate) {
 }
 
 // ─── TEAM / ROLES ────────────────────────────────────────────────
-export async function ensureUserRole(userId, role = 'admin') {
+export async function ensureUserRole(userId, role = 'viewer') {
   const { data: existing } = await supabase.from('user_roles').select('id').eq('user_id', userId).maybeSingle();
   if (!existing) {
     await supabase.from('user_roles').insert([{ user_id: userId, role }]);
@@ -1651,7 +1692,24 @@ export async function ensureUserRole(userId, role = 'admin') {
 export async function getUserRole(userId) {
   const { data, error } = await supabase.from('user_roles').select('role').eq('user_id', userId).maybeSingle();
   if (error) throw error;
-  return data?.role || 'admin';
+  return data?.role || 'viewer';
+}
+
+export async function getCustomPermissionsForUser(userId) {
+  const { data: userRoleRow, error: rErr } = await supabase
+    .from('user_roles')
+    .select('role, custom_role_id')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (rErr || !userRoleRow || userRoleRow.role !== 'custom' || !userRoleRow.custom_role_id) {
+    return null;
+  }
+  const { data: perms, error: pErr } = await supabase
+    .from('custom_permissions')
+    .select('module_name, can_read, can_write, can_delete')
+    .eq('role_id', userRoleRow.custom_role_id);
+  if (pErr) throw pErr;
+  return perms || [];
 }
 
 export async function getTeamInvites(ownerId) {
