@@ -98,6 +98,31 @@ export async function getTenantId(userId) {
   if (!activeUserId) return null;
 
   const { data: { user: authUser } } = await supabase.auth.getUser();
+  
+  // Check if a specific tenant_id was selected in localStorage
+  if (typeof window !== 'undefined') {
+    const selected = localStorage.getItem('khatape_active_tenant_id');
+    if (selected) {
+      if (selected === activeUserId) {
+        return activeUserId;
+      }
+      if (authUser && authUser.email) {
+        const { data: invite, error } = await supabase
+          .from('team_invites')
+          .select('owner_id')
+          .eq('email', authUser.email.toLowerCase().trim())
+          .eq('status', 'accepted')
+          .eq('owner_id', selected)
+          .limit(1)
+          .maybeSingle();
+        if (!error && invite) {
+          return selected;
+        }
+      }
+    }
+  }
+
+  // Fallback to default behavior: check for any accepted invite
   if (authUser && authUser.id === activeUserId) {
     const email = authUser.email;
     if (email) {
@@ -114,6 +139,91 @@ export async function getTenantId(userId) {
     }
   }
   return activeUserId;
+}
+
+export async function getAccessibleBusinesses() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const list = [];
+  
+  // 1. User's own business
+  const { data: ownProfile } = await supabase
+    .from('business_profile')
+    .select('business_name')
+    .eq('user_id', user.id)
+    .maybeSingle();
+    
+  list.push({
+    tenant_id: user.id,
+    business_name: ownProfile?.business_name || 'My Business (Owner)',
+    role: 'admin',
+    is_owner: true,
+    status: 'accepted'
+  });
+
+  // 2. Invited businesses (both accepted and pending)
+  const email = user.email;
+  if (email) {
+    const { data: invites } = await supabase
+      .from('team_invites')
+      .select('owner_id, role, status')
+      .eq('email', email.toLowerCase().trim());
+      
+    if (invites && invites.length > 0) {
+      const ownerIds = invites.map(i => i.owner_id);
+      const { data: profiles } = await supabase
+        .from('business_profile')
+        .select('user_id, business_name')
+        .in('user_id', ownerIds);
+        
+      invites.forEach(invite => {
+        const profile = profiles?.find(p => p.user_id === invite.owner_id);
+        list.push({
+          tenant_id: invite.owner_id,
+          business_name: profile?.business_name || `Business (${invite.role})`,
+          role: invite.role || 'viewer',
+          is_owner: false,
+          status: invite.status
+        });
+      });
+    }
+  }
+  
+  return list;
+}
+
+export async function acceptBusinessInvite(ownerId, email) {
+  const { data, error } = await supabase
+    .from('team_invites')
+    .update({ status: 'accepted' })
+    .eq('owner_id', ownerId)
+    .eq('email', email.toLowerCase().trim())
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function getActiveRole(userId, tenantId) {
+  if (userId === tenantId) {
+    return getUserRole(userId);
+  }
+  
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user && user.email) {
+    const { data: invite, error } = await supabase
+      .from('team_invites')
+      .select('role')
+      .eq('email', user.email.toLowerCase().trim())
+      .eq('owner_id', tenantId)
+      .eq('status', 'accepted')
+      .maybeSingle();
+    if (!error && invite) {
+      return invite.role || 'viewer';
+    }
+  }
+  return 'viewer';
 }
 
 export async function getAuditLogs() {

@@ -36,10 +36,15 @@ const accountingLinks = [
 ];
 
 function Sidebar({ onClose }) {
-  const { userRole, canManageUsers, checkPermission } = useRole();
+  const { userRole, tenantId, accessibleBusinesses, switchBusiness, acceptInvite, canManageUsers, checkPermission } = useRole();
   const { user } = useUser();
+  const [dropdownOpen, setDropdownOpen] = React.useState(false);
   const levels = { admin: 3, accountant: 2, viewer: 1 };
   const ok = (role) => (levels[userRole] || 0) >= (levels[role] || 0);
+
+  const activeBusiness = accessibleBusinesses.find(b => b.tenant_id === tenantId) || { business_name: 'Loading Business...' };
+  const acceptedBusinesses = accessibleBusinesses.filter(b => b.status === 'accepted');
+  const pendingBusinesses = accessibleBusinesses.filter(b => b.status === 'pending');
 
   const getInitials = (email) => {
     if (!email) return 'U';
@@ -73,6 +78,140 @@ function Sidebar({ onClose }) {
             <span className="sidebar-logo-tagline">GST Billing</span>
           </div>
         </div>
+      </div>
+
+      <div className="sidebar-business-selector" style={{ padding: '0 16px', marginBottom: '16px', position: 'relative' }}>
+        <div 
+          onClick={() => setDropdownOpen(!dropdownOpen)} 
+          style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            background: 'rgba(255, 255, 255, 0.05)', 
+            border: '1px solid rgba(255, 255, 255, 0.1)', 
+            borderRadius: '8px', 
+            padding: '10px 12px', 
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          className="business-selector-header"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+            <span style={{ fontSize: '18px' }}>🏢</span>
+            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+              <span style={{ 
+                fontWeight: '700', 
+                color: '#fff', 
+                fontSize: '13px', 
+                whiteSpace: 'nowrap', 
+                overflow: 'hidden', 
+                textOverflow: 'ellipsis' 
+              }}>
+                {activeBusiness.business_name}
+              </span>
+              <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', textTransform: 'capitalize' }}>
+                {activeBusiness.is_owner ? 'Owner' : activeBusiness.role}
+              </span>
+            </div>
+          </div>
+          <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px' }}>{dropdownOpen ? '▲' : '▼'}</span>
+        </div>
+
+        {dropdownOpen && (
+          <div 
+            style={{ 
+              position: 'absolute', 
+              top: '100%', 
+              left: '16px', 
+              right: '16px', 
+              background: '#1e293b', 
+              border: '1px solid rgba(255,255,255,0.1)', 
+              borderRadius: '8px', 
+              zIndex: 100, 
+              marginTop: '4px',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+              maxHeight: '260px',
+              overflowY: 'auto'
+            }}
+          >
+            <div style={{ padding: '8px 12px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', borderBottom: '1px solid rgba(255,255,255,0.05)', fontWeight: '700', textTransform: 'uppercase' }}>
+              My Businesses
+            </div>
+            {acceptedBusinesses.map(b => (
+              <div 
+                key={b.tenant_id}
+                onClick={() => { switchBusiness(b.tenant_id); setDropdownOpen(false); }}
+                style={{ 
+                  padding: '10px 12px', 
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  background: b.tenant_id === tenantId ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                  transition: 'background 0.2s'
+                }}
+                className="business-dropdown-item"
+              >
+                <div style={{ minWidth: 0, flex: 1, paddingRight: '8px' }}>
+                  <div style={{ color: '#fff', fontSize: '12.5px', fontWeight: b.tenant_id === tenantId ? '700' : '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {b.business_name}
+                  </div>
+                  <div style={{ fontSize: '9.5px', color: 'rgba(255,255,255,0.5)', textTransform: 'capitalize' }}>
+                    {b.is_owner ? 'Owner' : b.role}
+                  </div>
+                </div>
+                {b.tenant_id === tenantId && <span style={{ color: '#10B981', fontSize: '12px' }}>✓</span>}
+              </div>
+            ))}
+
+            {pendingBusinesses.length > 0 && (
+              <>
+                <div style={{ padding: '8px 12px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)', fontWeight: '700', textTransform: 'uppercase' }}>
+                  Invites & Requests
+                </div>
+                {pendingBusinesses.map(b => (
+                  <div 
+                    key={b.tenant_id}
+                    style={{ 
+                      padding: '10px 12px', 
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                      borderBottom: '1px solid rgba(255,255,255,0.05)'
+                    }}
+                  >
+                    <div>
+                      <div style={{ color: '#fff', fontSize: '12.5px', fontWeight: '500' }}>
+                        {b.business_name}
+                      </div>
+                      <div style={{ fontSize: '9.5px', color: 'rgba(255,255,255,0.5)' }}>
+                        Invited as: <span style={{ textTransform: 'capitalize' }}>{b.role}</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => { acceptInvite(b.tenant_id, user.email); setDropdownOpen(false); }}
+                      style={{ 
+                        background: '#10B981', 
+                        color: '#fff', 
+                        border: 'none', 
+                        borderRadius: '4px', 
+                        padding: '6px 10px', 
+                        fontSize: '11px', 
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s',
+                        textAlign: 'center'
+                      }}
+                      type="button"
+                    >
+                      🤝 Accept & Join
+                    </button>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="sidebar-user-info">

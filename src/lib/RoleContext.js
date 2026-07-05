@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useUser } from './useUser';
-import { getUserRole, ensureUserRole, getTenantId, getCustomPermissionsForUser } from './db';
+import { getUserRole, ensureUserRole, getTenantId, getCustomPermissionsForUser, getAccessibleBusinesses, acceptBusinessInvite, getActiveRole } from './db';
 
 const RoleContext = createContext();
 
@@ -55,18 +55,24 @@ export function RoleProvider({ children }) {
     return null;
   };
 
+  const [accessibleBusinesses, setAccessibleBusinesses] = useState([]);
+  const [businessRefreshTrigger, setBusinessRefreshTrigger] = useState(0);
+
   useEffect(() => {
-    const fetchRole = async () => {
+    const fetchRoleAndBusinesses = async () => {
       if (!userId) {
         setLoading(false);
         return;
       }
       try {
+        setLoading(true);
         await ensureUserRole(userId, 'viewer');
-        const role = await getUserRole(userId);
-        setUserRole(role);
         const tId = await getTenantId(userId);
         setTenantId(tId);
+        
+        const role = await getActiveRole(userId, tId);
+        setUserRole(role);
+        
         setCustomPermissions({});
         if (role === 'custom') {
           const perms = await getCustomPermissionsForUser(userId);
@@ -82,6 +88,9 @@ export function RoleProvider({ children }) {
           }
           setCustomPermissions(permMap);
         }
+        
+        const list = await getAccessibleBusinesses();
+        setAccessibleBusinesses(list);
       } catch (err) {
         console.error('Error fetching user role, defaulting to viewer:', err);
         setUserRole('viewer');
@@ -90,8 +99,18 @@ export function RoleProvider({ children }) {
         setLoading(false);
       }
     };
-    fetchRole();
-  }, [userId]);
+    fetchRoleAndBusinesses();
+  }, [userId, businessRefreshTrigger]);
+
+  const switchBusiness = (newTenantId) => {
+    localStorage.setItem('khatape_active_tenant_id', newTenantId);
+    setBusinessRefreshTrigger(prev => prev + 1);
+  };
+
+  const acceptInvite = async (ownerId, email) => {
+    await acceptBusinessInvite(ownerId, email);
+    switchBusiness(ownerId);
+  };
 
   const roleHierarchy = { admin: 3, accountant: 2, viewer: 1 };
   const hasPermission = (requiredRole) => {
@@ -149,6 +168,10 @@ export function RoleProvider({ children }) {
       tenantId,
       customPermissions,
       loading,
+      accessibleBusinesses,
+      switchBusiness,
+      acceptInvite,
+      refreshBusinesses: () => setBusinessRefreshTrigger(prev => prev + 1),
       hasPermission,
       hasModulePermission,
       checkPermission,
