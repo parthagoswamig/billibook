@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { supabase } from '../db';
 import { useRole } from '../lib/RoleContext';
 import { useUser } from '../lib/useUser';
+import AddBusinessModal from './AddBusinessModal';
 
 const salesLinks = [
   { to: '/invoices', label: '📄 Sales Invoice', role: 'viewer', module: 'invoices' },
@@ -39,6 +40,7 @@ function Sidebar({ onClose }) {
   const { userRole, tenantId, accessibleBusinesses, switchBusiness, acceptInvite, canManageUsers, checkPermission } = useRole();
   const { user } = useUser();
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
+  const [addBusinessModalOpen, setAddBusinessModalOpen] = React.useState(false);
   const levels = { admin: 3, accountant: 2, viewer: 1 };
   const ok = (role) => (levels[userRole] || 0) >= (levels[role] || 0);
 
@@ -210,6 +212,31 @@ function Sidebar({ onClose }) {
                 ))}
               </>
             )}
+
+            {/* Add New Business Button */}
+            <div 
+              onClick={() => {
+                setDropdownOpen(false);
+                setAddBusinessModalOpen(true);
+              }}
+              style={{
+                padding: '12px',
+                borderTop: '1px solid rgba(255,255,255,0.05)',
+                color: '#3b82f6',
+                fontSize: '12.5px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                textAlign: 'center',
+                transition: 'background 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+              className="business-dropdown-item"
+            >
+              <span>+</span> Add New Business
+            </div>
           </div>
         )}
       </div>
@@ -278,6 +305,12 @@ function Sidebar({ onClose }) {
           🚪 Log out
         </button>
       </div>
+
+      <AddBusinessModal 
+        isOpen={addBusinessModalOpen} 
+        onClose={() => setAddBusinessModalOpen(false)} 
+        currentEmail={user?.email} 
+      />
     </aside>
   );
 }
