@@ -1,0 +1,21 @@
+[Script Info]
+Title: KhataPe Full Demo Bangla
+ScriptType: v4.00+
+PlayResX: 1280
+PlayResY: 720
+WrapStyle: 2
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Caption,Nirmala UI,30,&H00FFFFFF,&H000000FF,&H00222222,&HAA111111,-1,0,0,0,100,100,0,0,4,0,0,2,70,70,34,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.30,0:00:06.80,Caption,,0,0,0,,KhataPe দিয়ে ব্যবসার হিসাব রাখুন\Nএক অ্যাপেই billing, stock আর reports
+Dialogue: 0,0:00:08.20,0:00:14.80,Caption,,0,0,0,,ড্যাশবোর্ডে sales, pending আর quick actions\Nসবকিছু দেখুন এক নজরে
+Dialogue: 0,0:00:16.20,0:00:24.60,Caption,,0,0,0,,Products & Inventory থেকে\Nstock, price আর GST manage করুন
+Dialogue: 0,0:00:26.20,0:00:36.80,Caption,,0,0,0,,Expense page-এ category wise\Nসব খরচ track করুন সহজে
+Dialogue: 0,0:00:38.20,0:00:46.80,Caption,,0,0,0,,Reports & GST থেকে\Nreturn-ready summary দেখে নিন
+Dialogue: 0,0:00:48.20,0:00:57.20,Caption,,0,0,0,,Business settings, payment reminders\Nআর stock management এক জায়গায়
+Dialogue: 0,0:00:57.40,0:01:00.00,Caption,,0,0,0,,আজই KhataPe দিয়ে আপনার billing digital করুন

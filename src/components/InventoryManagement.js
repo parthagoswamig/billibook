@@ -57,7 +57,7 @@ function InventoryManagement({ tenantId }) {
   const handleCreateAlert = async (e) => {
     e.preventDefault();
     if (!activeTenantId) return;
-    if (!canCreate()) return;
+    if (!canCreate('products')) return;
     
     try {
       await createStockAlert(activeTenantId, form);
@@ -74,7 +74,7 @@ function InventoryManagement({ tenantId }) {
   const handleStockUpdate = async (e) => {
     e.preventDefault();
     if (!activeTenantId || !stockUpdateForm.product_id) return;
-    if (!canEdit()) return;
+    if (!canEdit('products')) return;
     
     try {
       await updateProductStock(stockUpdateForm.product_id, stockUpdateForm.quantity, stockUpdateForm.operation);
@@ -88,7 +88,7 @@ function InventoryManagement({ tenantId }) {
   };
 
   const handleResolveAlert = async (alertId) => {
-    if (!canEdit()) return;
+    if (!canEdit('products')) return;
     try {
       await updateStockAlertStatus(alertId, 'resolved');
       setMessage('✓ Alert resolved successfully');
@@ -100,7 +100,7 @@ function InventoryManagement({ tenantId }) {
   };
 
   const handleDeleteAlert = async (alertId) => {
-    if (!canDelete()) return;
+    if (!canDelete('products')) return;
     if (!confirm('Are you sure you want to delete this alert?')) return;
     
     try {
@@ -142,7 +142,7 @@ function InventoryManagement({ tenantId }) {
       {error && <p className="form-message form-error">{error}</p>}
 
       {/* Quick Stock Update */}
-      {canEdit() && (
+      {canEdit('products') && (
         <div className="inventory-section">
           <h3>⚡ Quick Stock Update</h3>
           <form onSubmit={handleStockUpdate} className="quick-stock-form">
@@ -187,7 +187,7 @@ function InventoryManagement({ tenantId }) {
       <div className="inventory-section">
         <div className="section-header">
           <h3>⚠️ Low Stock Products</h3>
-          {canCreate() && (
+          {canCreate('products') && (
             <button 
               className="secondary-button" 
               onClick={() => setShowModal(true)}
@@ -267,7 +267,7 @@ function InventoryManagement({ tenantId }) {
                 </div>
 
                 <div className="alert-actions">
-                  {canEdit() && (
+                  {canEdit('products') && (
                     <button 
                       className="action-button resolve-btn"
                       onClick={() => handleResolveAlert(alert.id)}
@@ -276,7 +276,7 @@ function InventoryManagement({ tenantId }) {
                       Resolve
                     </button>
                   )}
-                  {canDelete() && (
+                  {canDelete('products') && (
                     <button 
                       className="action-button delete-btn"
                       onClick={() => handleDeleteAlert(alert.id)}

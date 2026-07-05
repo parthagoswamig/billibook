@@ -115,8 +115,8 @@ function Products() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!tenantId || !form.name) return;
-    if (editId && !canEdit()) return;
-    if (!editId && !canCreate()) return;
+    if (editId && !canEdit('products')) return;
+    if (!editId && !canCreate('products')) return;
     try {
       const payload = {
         name: form.name, 
@@ -156,6 +156,7 @@ function Products() {
   };
 
   const handleDelete = async (id, name) => {
+    if (!canDelete('products')) return;
     if (!window.confirm(`Delete "${name}"?`)) return;
     try {
       await deleteProduct(id);
@@ -174,7 +175,7 @@ function Products() {
   };
 
   const handleImport = async () => {
-    if (!canCreate() || !tenantId) return;
+    if (!canCreate('products') || !tenantId) return;
     try {
       const data = await importFromCSV();
       if (!data || data.length === 0) {
@@ -197,12 +198,11 @@ function Products() {
       <PageSection
         eyebrow="Stock"
         title="Products & Inventory"
-        description="Manage products, stock levels, HSN codes, and GST rates."
         actions={
           <>
-            {canCreate() && <button className="secondary-button" type="button" onClick={handleImport}>📤 Import CSV</button>}
+            {canCreate('products') && <button className="secondary-button" type="button" onClick={handleImport}>📤 Import CSV</button>}
             <button className="secondary-button" type="button" onClick={handleExport}>📥 Export CSV</button>
-            {canCreate() && (
+            {canCreate('products') && (
               <button 
                 className="primary-button" 
                 type="button" 
@@ -405,7 +405,7 @@ function Products() {
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                             <button className="action-button" style={{ padding: '4px 8px', fontSize: '11px' }} type="button" onClick={() => { setSelectedProduct(p); setGeneratorType('qr'); setShowBarcodeModal(true); }}>📱 QR</button>
                             <button className="action-button" style={{ padding: '4px 8px', fontSize: '11px' }} type="button" onClick={() => { setSelectedProduct(p); setGeneratorType('barcode'); setShowBarcodeModal(true); }}>📊 Barcode</button>
-                            {canEdit() && (
+                            {canEdit('products') && (
                               <button 
                                 className="action-button" 
                                 style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--accent-light)', color: 'var(--accent)' }} 
@@ -426,7 +426,7 @@ function Products() {
                                 Edit
                               </button>
                             )}
-                            {canDelete() && (
+                            {canDelete('products') && (
                               <button 
                                 className="action-button danger-btn" 
                                 style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--danger-light)', color: 'var(--danger)', marginLeft: 'auto' }} 

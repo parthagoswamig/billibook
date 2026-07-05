@@ -18,8 +18,7 @@ import { formatCurrency, formatDate } from '../lib/utils';
 import './Inventory.css';
 
 function Inventory() {
-  const { tenantId } = useRole();
-  const { canCreate } = useRole();
+  const { tenantId, canCreate, canDelete } = useRole();
   const [products, setProducts] = useState([]);
   const [valuation, setValuation] = useState({ totalPurchaseValue: 0, totalSaleValue: 0, totalItems: 0 });
   const [adjustments, setAdjustments] = useState([]);
@@ -73,7 +72,7 @@ function Inventory() {
 
   const handleAdjustmentSubmit = async (e) => {
     e.preventDefault();
-    if (!canCreate()) {
+    if (!canCreate('products')) {
       setError('Permission denied: You do not have access to modify stock.');
       return;
     }
@@ -100,7 +99,7 @@ function Inventory() {
 
   const handleTransferSubmit = async (e) => {
     e.preventDefault();
-    if (!canCreate()) {
+    if (!canCreate('products')) {
       setError('Permission denied: You do not have access to modify stock.');
       return;
     }
@@ -141,7 +140,7 @@ function Inventory() {
 
   const handleWarehouseSubmit = async (e) => {
     e.preventDefault();
-    if (!canCreate()) {
+    if (!canCreate('products')) {
       setError('Permission denied: You do not have access to create warehouses.');
       return;
     }
@@ -162,6 +161,10 @@ function Inventory() {
   };
 
   const handleDeleteWarehouse = async (id) => {
+    if (!canDelete('products')) {
+      setError('Permission denied: You do not have access to delete warehouses.');
+      return;
+    }
     if (!window.confirm('Are you sure you want to delete this warehouse?')) return;
     try {
       setError('');

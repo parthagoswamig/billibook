@@ -128,7 +128,7 @@ function Accounting() {
 
   const handleJESubmit = async (e) => {
     e.preventDefault();
-    if (!canCreate()) {
+    if (!canCreate('accounting')) {
       setError('Permission denied: You do not have access to record accounting entries.');
       return;
     }
@@ -448,7 +448,7 @@ function Accounting() {
         <div className="accounting-card">
           <div className="book-title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3>Double Entry General Ledger Journals</h3>
-            {canCreate() && (
+            {canCreate('accounting') && (
               <button 
                 type="button" 
                 className="btn-inventory"

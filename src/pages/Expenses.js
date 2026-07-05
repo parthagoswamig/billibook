@@ -35,7 +35,7 @@ function Expenses() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!tenantId || !form.category || !form.amount) return;
-    if (!canCreate()) return;
+    if (!canCreate('expenses')) return;
     try {
       await addExpense(tenantId, {
         category: form.category,
@@ -55,7 +55,7 @@ function Expenses() {
   };
 
   const handleDelete = async (id) => {
-    if (!canDelete()) return;
+    if (!canDelete('expenses')) return;
     if (!window.confirm('Delete this expense?')) return;
     try {
       await deleteExpense(id);

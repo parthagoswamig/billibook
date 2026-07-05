@@ -58,7 +58,7 @@ function RecurringInvoices({ tenantId }) {
   const handleCreateRecurring = async (e) => {
     e.preventDefault();
     if (!activeTenantId) return;
-    if (!canCreate()) return;
+    if (!canCreate('invoices')) return;
     
     try {
       const baseInvoice = invoices.find(inv => inv.id === form.base_invoice_id);
@@ -97,7 +97,7 @@ function RecurringInvoices({ tenantId }) {
   };
 
   const handlePause = async (recurringId) => {
-    if (!canEdit()) return;
+    if (!canEdit('invoices')) return;
     try {
       await pauseRecurringInvoice(recurringId);
       setMessage('✓ Recurring invoice paused');
@@ -109,7 +109,7 @@ function RecurringInvoices({ tenantId }) {
   };
 
   const handleResume = async (recurringId) => {
-    if (!canEdit()) return;
+    if (!canEdit('invoices')) return;
     try {
       const nextDate = new Date();
       nextDate.setMonth(nextDate.getMonth() + 1);
@@ -123,7 +123,7 @@ function RecurringInvoices({ tenantId }) {
   };
 
   const handleDelete = async (recurringId) => {
-    if (!canDelete()) return;
+    if (!canDelete('invoices')) return;
     if (!confirm('Are you sure you want to delete this recurring invoice?')) return;
     
     try {
@@ -161,7 +161,7 @@ function RecurringInvoices({ tenantId }) {
     <div className="recurring-invoices">
       <div className="recurring-header">
         <h2>🔄 Recurring Invoices</h2>
-        {canCreate() && (
+        {canCreate('invoices') && (
           <button 
             className="primary-button" 
             onClick={() => setShowModal(true)}
@@ -213,8 +213,8 @@ function RecurringInvoices({ tenantId }) {
                     )}
                   </div>
                 </div>
-                <div className="recurring-actions">
-                  {canCreate() && (
+                 <div className="recurring-actions">
+                  {canCreate('invoices') && (
                     <button 
                       className="action-button generate-btn"
                       onClick={() => handleGenerateNow(recurring.id)}
@@ -224,7 +224,7 @@ function RecurringInvoices({ tenantId }) {
                     </button>
                   )}
                   {recurring.status === 'active' ? (
-                    canEdit() && (
+                    canEdit('invoices') && (
                       <button 
                         className="action-button pause-btn"
                         onClick={() => handlePause(recurring.id)}
@@ -234,7 +234,7 @@ function RecurringInvoices({ tenantId }) {
                       </button>
                     )
                   ) : (
-                    canEdit() && (
+                    canEdit('invoices') && (
                       <button 
                         className="action-button resume-btn"
                         onClick={() => handleResume(recurring.id)}
@@ -244,7 +244,7 @@ function RecurringInvoices({ tenantId }) {
                       </button>
                     )
                   )}
-                  {canDelete() && (
+                  {canDelete('invoices') && (
                     <button 
                       className="action-button delete-btn"
                       onClick={() => handleDelete(recurring.id)}

@@ -66,7 +66,7 @@ function AppShell() {
         onClick={() => setSidebarOpen(!sidebarOpen)}
         aria-label="Toggle Sidebar Menu"
       >
-        {sidebarOpen ? '✕' : '☰'}
+        {sidebarOpen ? '\u2715' : '\u2630'}
       </button>
 
       <Sidebar onClose={() => setSidebarOpen(false)} />
@@ -119,6 +119,24 @@ function App() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [updateUrl, setUpdateUrl] = useState('');
   const [onlineVersion, setOnlineVersion] = useState('');
+
+  useEffect(() => {
+    const checkUpdate = async () => {
+      try {
+        const res = await fetch('/version.json?t=' + Date.now());
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.version && data.version !== CURRENT_VERSION) {
+          setOnlineVersion(data.version);
+          setUpdateUrl(data.url || 'https://khatape360.vercel.app/KhataPe.apk');
+          setUpdateAvailable(true);
+        }
+      } catch (err) {
+        console.warn('Update check failed:', err);
+      }
+    };
+    checkUpdate();
+  }, []);
 
   // Track unique user login — once per user per day (web & mobile app)
   useEffect(() => {

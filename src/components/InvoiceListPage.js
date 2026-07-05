@@ -164,7 +164,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
       setInvoices(inv);
       setTotalCount(inv.totalCount || 0);
 
-      if (location.state?.openCreate && canCreate()) {
+      if (location.state?.openCreate && canCreate('invoices')) {
         navigate(location.pathname, { replace: true, state: {} });
         const businessProf = await getProfile(tenantId);
         const dueDays = businessProf?.default_due_days ?? 7;
@@ -270,7 +270,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
   const handleAddCustomerSubmit = async (e) => {
     e.preventDefault();
     if (!newCustomer.name.trim()) return;
-    if (!canCreate() || !tenantId) return;
+    if (!canCreate('customers') || !tenantId) return;
     setCustomerSaving(true);
     setCustomerError('');
     try {
@@ -319,7 +319,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
       setError('⚠️ You are offline. Your active draft is saved locally, but you cannot save to the database until connectivity is restored.');
       return;
     }
-    if (!tenantId || !canCreate()) return;
+    if (!tenantId || !canCreate('invoices')) return;
     setError('');
     const validItems = form.items.filter((i) => i.name && i.qty && i.price);
     if (!form.customerId || validItems.length === 0) {
@@ -403,7 +403,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
           <>
             <input className="form-input search-input" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             <button className="secondary-button" type="button" onClick={() => exportToCSV(`${documentKind}.csv`, ['No', 'Party', 'Date', 'Total', 'Status'], filtered.map((i) => [i.invoice_no, i.customers?.name, i.date, i.total, i.status]))}>📥 CSV</button>
-            {canCreate() && <button className="primary-button" type="button" onClick={openCreate}>+ Create</button>}
+            {canCreate('invoices') && <button className="primary-button" type="button" onClick={openCreate}>+ Create</button>}
           </>
         }
       >

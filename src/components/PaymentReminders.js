@@ -61,7 +61,7 @@ function PaymentReminders({ tenantId }) {
   const handleCreateReminder = async (e) => {
     e.preventDefault();
     if (!activeTenantId) return;
-    if (!canCreate()) return;
+    if (!canCreate('invoices')) return;
     
     try {
       let reminderDate;
@@ -103,7 +103,7 @@ function PaymentReminders({ tenantId }) {
   };
 
   const handleSendReminder = async (reminder) => {
-    if (!canCreate()) return;
+    if (!canCreate('invoices')) return;
     try {
       const invoice = dueInvoices.find(inv => inv.id === reminder.invoice_id);
       if (!invoice || !invoice.customers?.phone) {
@@ -125,7 +125,7 @@ function PaymentReminders({ tenantId }) {
   };
 
   const handleDeleteReminder = async (reminderId) => {
-    if (!canDelete()) return;
+    if (!canDelete('invoices')) return;
     if (!confirm('Are you sure you want to delete this reminder?')) return;
     
     try {
@@ -181,7 +181,7 @@ function PaymentReminders({ tenantId }) {
                   <span className="due-date">Due: {formatDate(invoice.due_date)}</span>
                   <span className="balance">{formatCurrency(invoice.balance, currency)}</span>
                 </div>
-                {canCreate() && (
+                {canCreate('invoices') && (
                   <button 
                     className="quick-reminder-btn"
                     onClick={() => {
@@ -225,7 +225,7 @@ function PaymentReminders({ tenantId }) {
                       {reminder.status}
                     </span>
                     <div className="reminder-actions">
-                      {reminder.status === 'pending' && canCreate() && (
+                      {reminder.status === 'pending' && canCreate('invoices') && (
                         <button 
                           className="action-button send-btn"
                           onClick={() => handleSendReminder(reminder)}
@@ -234,7 +234,7 @@ function PaymentReminders({ tenantId }) {
                           Send Now
                         </button>
                       )}
-                      {canDelete() && (
+                      {canDelete('invoices') && (
                         <button 
                           className="action-button delete-btn"
                           onClick={() => handleDeleteReminder(reminder.id)}

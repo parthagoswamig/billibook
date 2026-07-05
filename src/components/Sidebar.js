@@ -28,15 +28,15 @@ const mainLinks = [
 ];
 
 const accountingLinks = [
-  { to: '/payments', label: '💳 Payments', role: 'accountant', module: 'accounting' },
+  { to: '/payments', label: '💳 Payments', role: 'accountant', module: 'invoices' },
   { to: '/accounting', label: '🏦 Accounting Books', role: 'accountant', module: 'accounting' },
   { to: '/migration', label: '🔄 Migration', role: 'accountant', module: 'accounting' },
   { to: '/reports', label: '📈 Reports & GST', role: 'viewer', module: 'accounting' },
-  { to: '/settings', label: '⚙️ Settings', role: 'accountant' },
+  { to: '/settings', label: '⚙️ Settings', role: 'accountant', module: 'accounting' },
 ];
 
 function Sidebar({ onClose }) {
-  const { userRole, canManageUsers, hasModulePermission } = useRole();
+  const { userRole, canManageUsers, checkPermission } = useRole();
   const { user } = useUser();
   const levels = { admin: 3, accountant: 2, viewer: 1 };
   const ok = (role) => (levels[userRole] || 0) >= (levels[role] || 0);
@@ -47,7 +47,7 @@ function Sidebar({ onClose }) {
   };
 
   const canSeeLink = (l) => {
-    if (l.module && userRole === 'custom') return hasModulePermission(l.module, 'view');
+    if (l.module && userRole === 'custom') return checkPermission('read', l.module);
     return ok(l.role);
   };
 

@@ -76,8 +76,8 @@ function Customers() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!tenantId || !form.name) return;
-    if (editId && !canEdit()) return;
-    if (!editId && !canCreate()) return;
+    if (editId && !canEdit('customers')) return;
+    if (!editId && !canCreate('customers')) return;
 
     setError('');
 
@@ -108,7 +108,7 @@ function Customers() {
   };
 
   const handleImport = async () => {
-    if (!canCreate() || !tenantId) return;
+    if (!canCreate('customers') || !tenantId) return;
     try {
       const data = await importFromCSV();
       if (!data || data.length === 0) {
@@ -136,8 +136,8 @@ function Customers() {
               onChange={(e) => setSearchTerm(e.target.value)} 
               style={{ width: '180px', marginRight: '8px', display: 'inline-block' }}
             />
-            {canCreate() && <button className="primary-button" type="button" onClick={openAdd}>+ Add</button>}
-            {canCreate() && <button className="secondary-button" type="button" onClick={handleImport}>📤 Import CSV</button>}
+            {canCreate('customers') && <button className="primary-button" type="button" onClick={openAdd}>+ Add</button>}
+            {canCreate('customers') && <button className="secondary-button" type="button" onClick={handleImport}>📤 Import CSV</button>}
             <button className="secondary-button" type="button" onClick={() => exportToCSV(`${tab}s.csv`, ['Name', 'Phone', 'Invoices', 'Outstanding Balance'], parties.map((p) => [p.name, p.phone, stats[p.id]?.count || 0, stats[p.id]?.outstanding || 0]))}>📥 CSV</button>
           </>
         }
@@ -157,8 +157,8 @@ function Customers() {
                   <span>{p.name}</span>
                   <div className="row-actions">
                     <button className="action-button" type="button" onClick={() => navigate(`/ledger/${p.id}`)}>Ledger</button>
-                    {canEdit() && <button className="action-button" type="button" onClick={() => openEdit(p)}>Edit</button>}
-                    {canDelete() && <button className="action-button danger-btn" type="button" onClick={async () => { if (window.confirm('Delete?')) { await deleteParty(p.id); load(); } }}>Delete</button>}
+                    {canEdit('customers') && <button className="action-button" type="button" onClick={() => openEdit(p)}>Edit</button>}
+                    {canDelete('customers') && <button className="action-button danger-btn" type="button" onClick={async () => { if (window.confirm('Delete?')) { await deleteParty(p.id); load(); } }}>Delete</button>}
                   </div>
                 </div>
               ))}
