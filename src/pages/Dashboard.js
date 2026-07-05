@@ -68,6 +68,7 @@ function Dashboard() {
   // Simple chart data visualization
   const salesData = stats?.chartData || [];
   const maxSales = Math.max(1, ...salesData.map(d => Math.max(d.sales, d.expenses)));
+  const chartMinWidth = Math.max(560, salesData.length * 72);
   const getBarHeight = (value) => {
     if (!value || value <= 0) return '0%';
     const scaledHeight = (value / maxSales) * 100;
@@ -169,7 +170,7 @@ function Dashboard() {
             </div>
           </div>
           <div className="chart-container">
-            <div className="bar-chart">
+            <div className="bar-chart" style={{ minWidth: `${chartMinWidth}px` }}>
               {salesData.map((data, index) => (
                 <div key={index} className="chart-bar-group">
                   <div className="bar-wrapper">

@@ -1402,6 +1402,19 @@ export async function getUnpaidInvoices(userId, type = 'sale') {
 export async function getDashboardStats(userId, timeRange = 'month') {
   const tenantId = await getTenantId(userId);
   if (!tenantId) return null;
+
+  const toDateKey = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const toMonthKey = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  };
   
   await syncOverdueStatuses(tenantId);
 
@@ -1439,13 +1452,13 @@ export async function getDashboardStats(userId, timeRange = 'month') {
     startDate = new Date(today.getFullYear(), today.getMonth(), 1);
   }
   
-  const startDateStr = startDate.toISOString().split('T')[0];
+  const startDateStr = toDateKey(startDate);
   const durationMs = today.getTime() - startDate.getTime();
   const prevStartDate = new Date(startDate.getTime() - durationMs);
-  const prevStartDateStr = prevStartDate.toISOString().split('T')[0];
+  const prevStartDateStr = toDateKey(prevStartDate);
 
   const earliestChartDate = new Date(today.getFullYear(), today.getMonth() - 5, 1);
-  const earliestChartDateStr = earliestChartDate.toISOString().split('T')[0];
+  const earliestChartDateStr = toDateKey(earliestChartDate);
   const queryStartDateStr = prevStartDateStr < earliestChartDateStr ? prevStartDateStr : earliestChartDateStr;
 
   // Optimized database calls
@@ -1542,24 +1555,69 @@ export async function getDashboardStats(userId, timeRange = 'month') {
   }
 
   const chartData = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-    const monthStr = d.toISOString().slice(0, 7);
-    const monthName = d.toLocaleString('default', { month: 'short' });
-    chartData.push({ id: monthStr, month: monthName, sales: 0, expenses: 0 });
+  const chartBucketType = timeRange === 'quarter' || timeRange === 'year' ? 'month' : 'day';
+  let cursor;
+
+  if (timeRange === 'today') {
+    chartData.push({ id: startDateStr, month: 'Today', sales: 0, expenses: 0 });
+  } else if (timeRange === 'week') {
+    cursor = new Date(startDate);
+    while (cursor <= today) {
+      chartData.push({
+        id: toDateKey(cursor),
+        month: cursor.toLocaleString('default', { weekday: 'short' }),
+        sales: 0,
+        expenses: 0
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  } else if (timeRange === 'month') {
+    cursor = new Date(startDate);
+    while (cursor <= today) {
+      chartData.push({
+        id: toDateKey(cursor),
+        month: String(cursor.getDate()),
+        sales: 0,
+        expenses: 0
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  } else if (timeRange === 'quarter' || timeRange === 'year') {
+    cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    const endMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    while (cursor <= endMonth) {
+      chartData.push({
+        id: toMonthKey(cursor),
+        month: cursor.toLocaleString('default', { month: 'short' }),
+        sales: 0,
+        expenses: 0
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+  } else {
+    cursor = new Date(startDate);
+    while (cursor <= today) {
+      chartData.push({
+        id: toDateKey(cursor),
+        month: String(cursor.getDate()),
+        sales: 0,
+        expenses: 0
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
   }
 
   saleInvoices.forEach(inv => {
     if (!inv.date) return;
-    const monthStr = inv.date.slice(0, 7);
-    const item = chartData.find(c => c.id === monthStr);
+    const bucketKey = chartBucketType === 'month' ? inv.date.slice(0, 7) : inv.date.slice(0, 10);
+    const item = chartData.find(c => c.id === bucketKey);
     if (item) item.sales += parseFloat(inv.total || 0);
   });
 
   expenses.forEach(exp => {
     if (!exp.date) return;
-    const monthStr = exp.date.slice(0, 7);
-    const item = chartData.find(c => c.id === monthStr);
+    const bucketKey = chartBucketType === 'month' ? exp.date.slice(0, 7) : exp.date.slice(0, 10);
+    const item = chartData.find(c => c.id === bucketKey);
     if (item) item.expenses += parseFloat(exp.amount || 0);
   });
 
