@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { getVisitStats } from '../lib/visitTracker';
+import { toast } from 'react-hot-toast';
 
 export default function AuthPage() {
   const { signIn, signUp } = useAuth();
@@ -30,6 +31,11 @@ export default function AuthPage() {
       if (mode === 'login') {
         const { error } = await signIn(form.email, form.password);
         if (error) setError(error.message);
+        else toast.success('Login Successful!', { 
+          duration: 3000, 
+          position: 'top-center',
+          style: { fontWeight: '600', borderRadius: '10px' }
+        });
       } else {
         const { error } = await signUp(form.email, form.password, form.businessName);
         if (error) setError(error.message);
