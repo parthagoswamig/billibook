@@ -89,6 +89,11 @@ export async function verifyWritePermission(action, entity, entityId = null) {
   return user;
 }
 
+export async function getTenantOwnerId(businessId) {
+  const { data } = await supabase.from('business_profile').select('user_id').eq('id', businessId).maybeSingle();
+  return data ? data.user_id : null;
+}
+
 export async function getTenantId(userId) {
   let activeUserId = userId;
   if (!activeUserId) {
@@ -97,99 +102,73 @@ export async function getTenantId(userId) {
   }
   if (!activeUserId) return null;
 
-  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const list = await getAccessibleBusinesses();
   
-  // Check if a specific tenant_id was selected in localStorage
   if (typeof window !== 'undefined') {
     const selected = localStorage.getItem('khatape_active_tenant_id');
-    if (selected) {
-      if (selected === activeUserId) {
-        return activeUserId;
-      }
-      if (authUser && authUser.email) {
-        const { data: invite, error } = await supabase
-          .from('team_invites')
-          .select('owner_id')
-          .eq('email', authUser.email.toLowerCase().trim())
-          .eq('status', 'accepted')
-          .eq('owner_id', selected)
-          .limit(1)
-          .maybeSingle();
-        if (!error && invite) {
-          return selected;
-        }
-      }
+    if (selected && list.find(b => b.tenant_id === selected && b.status === 'accepted')) {
+      return selected;
     }
   }
-
-  // Fallback to default behavior: check for any accepted invite
-  if (authUser && authUser.id === activeUserId) {
-    const email = authUser.email;
-    if (email) {
-      const { data: invite, error } = await supabase
-        .from('team_invites')
-        .select('owner_id')
-        .eq('email', email.toLowerCase().trim())
-        .eq('status', 'accepted')
-        .limit(1)
-        .maybeSingle();
-      if (!error && invite) {
-        return invite.owner_id;
-      }
-    }
-  }
-  return activeUserId;
+  
+  const defaultAccepted = list.find(b => b.status === 'accepted');
+  if (defaultAccepted) return defaultAccepted.tenant_id;
+  
+  return null;
 }
 
 export async function getAccessibleBusinesses() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
-
   const list = [];
   
-  // 1. User's own business
-  const { data: ownProfile } = await supabase
+  const { data: ownProfiles } = await supabase
     .from('business_profile')
-    .select('business_name')
-    .eq('user_id', user.id)
-    .maybeSingle();
+    .select('id, business_name, user_id')
+    .eq('user_id', user.id);
     
-  list.push({
-    tenant_id: user.id,
-    business_name: ownProfile?.business_name || 'My Business (Owner)',
-    role: 'admin',
-    is_owner: true,
-    status: 'accepted'
-  });
+  if (ownProfiles) {
+    ownProfiles.forEach(p => {
+      list.push({
+        tenant_id: p.id,
+        owner_id: p.user_id,
+        business_name: p.business_name || 'My Business',
+        role: 'admin',
+        is_owner: true,
+        status: 'accepted'
+      });
+    });
+  }
 
-  // 2. Invited businesses (both accepted and pending)
   const email = user.email;
   if (email) {
     const { data: invites } = await supabase
       .from('team_invites')
-      .select('owner_id, role, status')
+      .select('business_id, owner_id, role, status')
       .eq('email', email.toLowerCase().trim());
       
     if (invites && invites.length > 0) {
-      const ownerIds = invites.map(i => i.owner_id);
+      const bIds = invites.map(i => i.business_id).filter(Boolean);
       const { data: profiles } = await supabase
         .from('business_profile')
-        .select('user_id, business_name')
-        .in('user_id', ownerIds);
+        .select('id, user_id, business_name')
+        .in('id', bIds);
         
       invites.forEach(invite => {
-        const profile = profiles?.find(p => p.user_id === invite.owner_id);
-        list.push({
-          tenant_id: invite.owner_id,
-          business_name: profile?.business_name || `Business (${invite.role})`,
-          role: invite.role || 'viewer',
-          is_owner: false,
-          status: invite.status
-        });
+        const profile = profiles?.find(p => p.id === invite.business_id);
+        if (profile) {
+          list.push({
+            tenant_id: profile.id,
+            owner_id: profile.user_id,
+            business_name: profile.business_name || `Business (${invite.role})`,
+            role: invite.role || 'viewer',
+            is_owner: false,
+            status: invite.status
+          });
+        }
       });
     }
   }
-  
   return list;
 }
 
@@ -269,40 +248,46 @@ export const DOCUMENT_KINDS = {
 // ─── BUSINESS PROFILE ────────────────────────────────────────────
 export async function getProfile(userId) {
   const tenantId = await getTenantId(userId);
-  const { data, error } = await supabase.from('business_profile').select('*').eq('user_id', tenantId).maybeSingle();
+  const { data, error } = await supabase.from('business_profile').select('*').eq('id', tenantId).maybeSingle();
   if (error) throw error;
   return data;
 }
-export async function saveProfile(userId, profile) {
+export async function saveProfile(userId, profile, createNew = false) {
   const user = await verifyWritePermission('save', 'business_profile');
-  const tenantId = await getTenantId(userId);
-  const { data: existing, error: existingError } = await supabase.from('business_profile').select('id').eq('user_id', tenantId).maybeSingle();
-  if (existingError) throw existingError;
+  let tenantId = createNew ? null : await getTenantId(userId);
+  
   let result;
-  if (existing) {
-    const { data, error } = await supabase.from('business_profile').update(profile).eq('user_id', tenantId).select().single();
+  if (tenantId && !createNew) {
+    const { data, error } = await supabase.from('business_profile').update(profile).eq('id', tenantId).select().single();
     if (error) throw error;
     result = data;
   } else {
-    const { data, error } = await supabase.from('business_profile').insert([{ ...profile, user_id: tenantId }]).select().single();
+    // Create new business profile
+    const { data, error } = await supabase.from('business_profile').insert([{ ...profile, user_id: user.id }]).select().single();
     if (error) throw error;
     result = data;
+    // Set it as active
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('khatape_active_tenant_id', data.id);
+    }
   }
   await supabase.from('audit_logs').insert([{
     user_id: user.id,
-    action: existing ? 'update' : 'create',
+    business_id: result.id,
+    action: createNew ? 'create' : 'update',
     entity_type: 'business_profile',
-    entity_id: null,
+    entity_id: result.id,
     details: { business_name: profile.business_name }
   }]);
-  invalidateDashboardCache(tenantId);
+  invalidateDashboardCache(result.id);
   return result;
 }
 
 // ─── CUSTOMERS / SUPPLIERS ───────────────────────────────────────
 export async function getParties(userId, type, page = null, limit = null, search = '') {
   const tenantId = await getTenantId(userId);
-  let query = supabase.from('customers').select('*', { count: 'exact' }).eq('user_id', tenantId).eq('type', type);
+  const ownerId = await getTenantOwnerId(tenantId);
+  let query = supabase.from('customers').select('*', { count: 'exact' }).eq('business_id', tenantId).eq('type', type);
   
   if (search) {
     query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`);
@@ -323,7 +308,8 @@ export async function getParties(userId, type, page = null, limit = null, search
 export async function addParty(userId, party) {
   const user = await verifyWritePermission('create', 'customers');
   const tenantId = await getTenantId(userId);
-  const { data, error } = await supabase.from('customers').insert([{ ...party, user_id: tenantId }]).select().single();
+  const ownerId = await getTenantOwnerId(tenantId);
+  const { data, error } = await supabase.from('customers').insert([{ ...party, business_id: tenantId, user_id: ownerId }]).select().single();
   if (error) throw error;
   await supabase.from('audit_logs').insert([{
     user_id: user.id,
@@ -338,9 +324,10 @@ export async function addParty(userId, party) {
 export async function bulkImportParties(userId, parties, type) {
   const user = await verifyWritePermission('create', 'customers');
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
 
   const { data: job } = await supabase.from('migration_jobs').insert([{
-    user_id: tenantId,
+    business_id: tenantId, user_id: ownerId,
     file_name: `${type}_import_${new Date().toISOString().slice(0, 10)}.csv`,
     target_type: type === 'supplier' ? 'suppliers' : 'customers',
     status: 'completed',
@@ -348,7 +335,7 @@ export async function bulkImportParties(userId, parties, type) {
   }]).select().single();
 
   const rows = parties.map(p => ({
-    user_id: tenantId,
+    business_id: tenantId, user_id: ownerId,
     type: type,
     name: p.name || p.Name || p.CustomerName || p.PartyName || p.customer_name || p.party_name || p.client_name || p.ClientName || p.supplier_name || p.SupplierName || p.vendor_name || p.VendorName || '',
     email: p.email || p.Email || p.email_address || p.EmailAddress || p.mail || p.Mail || '',
@@ -403,7 +390,8 @@ export async function deleteParty(id) {
 // ─── PRODUCTS ────────────────────────────────────────────────────
 export async function getProducts(userId, page = null, limit = null, search = '', categoryId = '') {
   const tenantId = await getTenantId(userId);
-  let query = supabase.from('products').select('*, product_categories(name)', { count: 'exact' }).eq('user_id', tenantId);
+  const ownerId = await getTenantOwnerId(tenantId);
+  let query = supabase.from('products').select('*, product_categories(name)', { count: 'exact' }).eq('business_id', tenantId);
   
   if (categoryId) {
     query = query.eq('category_id', categoryId);
@@ -428,7 +416,8 @@ export async function getProducts(userId, page = null, limit = null, search = ''
 export async function addProduct(userId, product) {
   const user = await verifyWritePermission('create', 'products');
   const tenantId = await getTenantId(userId);
-  const { data, error } = await supabase.from('products').insert([{ ...product, user_id: tenantId }]).select().single();
+  const ownerId = await getTenantOwnerId(tenantId);
+  const { data, error } = await supabase.from('products').insert([{ ...product, business_id: tenantId, user_id: ownerId }]).select().single();
   if (error) throw error;
   await supabase.from('audit_logs').insert([{
     user_id: user.id,
@@ -443,9 +432,10 @@ export async function addProduct(userId, product) {
 export async function bulkImportProducts(userId, products) {
   const user = await verifyWritePermission('create', 'products');
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
 
   const { data: job } = await supabase.from('migration_jobs').insert([{
-    user_id: tenantId,
+    business_id: tenantId, user_id: ownerId,
     file_name: `products_import_${new Date().toISOString().slice(0, 10)}.csv`,
     target_type: 'products',
     status: 'completed',
@@ -453,7 +443,7 @@ export async function bulkImportProducts(userId, products) {
   }]).select().single();
 
   const rows = products.map(p => ({
-    user_id: tenantId,
+    business_id: tenantId, user_id: ownerId,
     name: p.name || p.Name || p.ProductName || p.product_name || p.item_name || p.Item || p.ItemName || p.product || p.Product || '',
     hsn: p.hsn || p.HSN || p.HsnCode || p.hsn_code || p.HSNCode || p.hsn_code || '',
     gst: parseFloat(p.gst || p.GST || p.GstRate || p.gst_rate || p.GSTRate || p.gst_percent || p.GSTPercent || p.tax_rate || p.TaxRate || 18) || 18,
@@ -512,10 +502,11 @@ export async function deleteProduct(id) {
 
 export async function getProductCategories(userId) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase
     .from('product_categories')
     .select('*')
-    .eq('user_id', tenantId)
+    .eq('business_id', tenantId)
     .order('name');
   if (error) throw error;
   return data || [];
@@ -524,9 +515,10 @@ export async function getProductCategories(userId) {
 export async function createProductCategory(userId, name) {
   const user = await verifyWritePermission('create', 'product_categories');
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase
     .from('product_categories')
-    .insert([{ user_id: tenantId, name }])
+    .insert([{ business_id: tenantId, user_id: ownerId, name }])
     .select()
     .single();
   if (error) throw error;
@@ -575,10 +567,11 @@ function shouldAdjustStock(invoiceType, documentKind) {
 
 export async function getInvoices(userId, type, documentKind = null, page = null, limit = null, search = '', status = '') {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   let query = supabase
     .from('invoices')
     .select('*, invoice_items(*), customers(id, name, phone, gstin, address)', { count: 'exact' })
-    .eq('user_id', tenantId).eq('type', type);
+    .eq('business_id', tenantId).eq('type', type);
     
   if (documentKind) {
     query = query.eq('document_kind', documentKind);
@@ -619,6 +612,7 @@ function normalizeInvoicePrefix(prefix, type, documentKind) {
 }
 async function getInvoicePrefix(userId, type, documentKind) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const kind = normalizeDocumentKind(type, documentKind);
   if (kind !== 'sale_invoice') return DOCUMENT_PREFIX[kind] || 'INV';
   const profile = await getProfile(tenantId);
@@ -626,21 +620,23 @@ async function getInvoicePrefix(userId, type, documentKind) {
 }
 async function ensureAvailableInvoiceNo(userId, type, documentKind, requestedInvoiceNo) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const kind = normalizeDocumentKind(type, documentKind);
-  const { data, error } = await supabase.from('invoices').select('invoice_no').eq('user_id', tenantId).eq('type', type).eq('document_kind', kind).eq('invoice_no', requestedInvoiceNo).maybeSingle();
+  const { data, error } = await supabase.from('invoices').select('invoice_no').eq('business_id', tenantId).eq('type', type).eq('document_kind', kind).eq('invoice_no', requestedInvoiceNo).maybeSingle();
   if (error) throw error;
   return data ? getNextInvoiceNo(tenantId, type, kind) : requestedInvoiceNo;
 }
 export async function saveInvoice(userId, invoice, items) {
   const user = await verifyWritePermission('create', 'invoices');
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const documentKind = normalizeDocumentKind(invoice.type, invoice.document_kind);
   const invoiceNo = await ensureAvailableInvoiceNo(tenantId, invoice.type, documentKind, invoice.invoice_no);
   const isPaymentDoc = DOCUMENT_KINDS[documentKind]?.payment;
   const initialStatus = isPaymentDoc ? 'unpaid' : 'open';
   
   const invoiceData = {
-    user_id: tenantId,
+    business_id: tenantId, user_id: ownerId,
     invoice_no: invoiceNo,
     type: invoice.type,
     document_kind: documentKind,
@@ -708,6 +704,7 @@ export async function updateInvoiceNotes(invoiceId, notes) {
 export async function updateInvoice(invoiceId, userId, invoice, items, oldItems, oldDocumentKind) {
   const user = await verifyWritePermission('update', 'invoices', invoiceId);
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const documentKind = normalizeDocumentKind(invoice.type, invoice.document_kind);
   
   const { data: oldInv } = await supabase.from('invoices').select('warehouse_id').eq('id', invoiceId).single();
@@ -729,7 +726,7 @@ export async function updateInvoice(invoiceId, userId, invoice, items, oldItems,
   await supabase.from('invoice_items').delete().eq('invoice_id', invoiceId);
   if (items.length > 0) {
     const rows = items.map(item => ({
-      invoice_id: invoiceId, user_id: tenantId, product_id: item.product_id || null,
+      invoice_id: invoiceId, business_id: tenantId, user_id: ownerId, product_id: item.product_id || null,
       name: item.name, hsn: item.hsn || null, qty: item.qty, price: item.price, gst: item.gst,
       amount: item.amount || (item.qty * item.price),
       unit: item.unit || 'Pcs',
@@ -803,9 +800,10 @@ export async function deleteInvoice(id, userId, type, items, documentKind) {
 }
 export async function getNextInvoiceNo(userId, type, documentKind) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const kind = normalizeDocumentKind(type, documentKind);
   const prefix = await getInvoicePrefix(tenantId, type, kind);
-  const { data, error } = await supabase.from('invoices').select('invoice_no').eq('user_id', tenantId).eq('type', type).eq('document_kind', kind);
+  const { data, error } = await supabase.from('invoices').select('invoice_no').eq('business_id', tenantId).eq('type', type).eq('document_kind', kind);
   if (error) throw error;
   const maxNumber = (data || []).reduce((max, row) => {
     const match = row.invoice_no?.match(new RegExp(`^${prefix}-(\\d+)$`));
@@ -818,13 +816,15 @@ export async function getNextInvoiceNo(userId, type, documentKind) {
 // ─── EXPENSES ────────────────────────────────────────────────────
 export async function getExpenses(userId) {
   const tenantId = await getTenantId(userId);
-  const { data, error } = await supabase.from('expenses').select('*').eq('user_id', tenantId).order('date', { ascending: false });
+  const ownerId = await getTenantOwnerId(tenantId);
+  const { data, error } = await supabase.from('expenses').select('*').eq('business_id', tenantId).order('date', { ascending: false });
   if (error) throw error; return data;
 }
 export async function addExpense(userId, expense) {
   const user = await verifyWritePermission('create', 'expenses');
   const tenantId = await getTenantId(userId);
-  const { data, error } = await supabase.from('expenses').insert([{ ...expense, user_id: tenantId }]).select().single();
+  const ownerId = await getTenantOwnerId(tenantId);
+  const { data, error } = await supabase.from('expenses').insert([{ ...expense, business_id: tenantId, user_id: ownerId }]).select().single();
   if (error) throw error;
   await supabase.from('audit_logs').insert([{
     user_id: user.id,
@@ -839,9 +839,10 @@ export async function addExpense(userId, expense) {
 export async function bulkImportExpenses(userId, expenses) {
   const user = await verifyWritePermission('create', 'expenses');
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
 
   const { data: job } = await supabase.from('migration_jobs').insert([{
-    user_id: tenantId,
+    business_id: tenantId, user_id: ownerId,
     file_name: `expenses_import_${new Date().toISOString().slice(0, 10)}.csv`,
     target_type: 'expenses',
     status: 'completed',
@@ -849,7 +850,7 @@ export async function bulkImportExpenses(userId, expenses) {
   }]).select().single();
 
   const rows = expenses.map(e => ({
-    user_id: tenantId,
+    business_id: tenantId, user_id: ownerId,
     category: e.category || e.Category || e.Type || e.type || e.expense_type || e.ExpenseType || e.head || e.Head || 'Other',
     description: e.description || e.Description || e.Remarks || e.remarks || e.note || e.Note || e.details || e.Details || e.particulars || e.Particulars || '',
     amount: parseFloat(e.amount || e.Amount || e.Total || e.total || e.cost || e.Cost || e.price || e.Price || e.value || e.Value || 0) || 0,
@@ -872,9 +873,10 @@ export async function bulkImportExpenses(userId, expenses) {
 export async function bulkImportInvoices(userId, invoices) {
   const user = await verifyWritePermission('create', 'invoices');
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
 
   const { data: job } = await supabase.from('migration_jobs').insert([{
-    user_id: tenantId,
+    business_id: tenantId, user_id: ownerId,
     file_name: `invoices_import_${new Date().toISOString().slice(0, 10)}.csv`,
     target_type: 'invoices',
     status: 'completed',
@@ -888,14 +890,14 @@ export async function bulkImportInvoices(userId, invoices) {
       const customerName = inv.customer_name || inv.CustomerName || inv.party_name || inv.PartyName || inv.customer || inv.Customer;
       let customerId = null;
       if (customerName) {
-        const { data: customers } = await supabase.from('customers').select('id').eq('user_id', tenantId).eq('name', customerName).limit(1);
+        const { data: customers } = await supabase.from('customers').select('id').eq('business_id', tenantId).eq('name', customerName).limit(1);
         if (customers && customers.length > 0) {
           customerId = customers[0].id;
         }
       }
 
       const invoiceData = {
-        user_id: tenantId,
+        business_id: tenantId, user_id: ownerId,
         customer_id: customerId,
         invoice_no: inv.invoice_no || inv.InvoiceNo || inv.invoice_number || inv.InvoiceNumber || inv.bill_no || inv.BillNo || '',
         type: inv.type || inv.Type || 'invoice',
@@ -925,7 +927,7 @@ export async function bulkImportInvoices(userId, invoices) {
       if (inv.items && Array.isArray(inv.items)) {
         const itemRows = inv.items.map(item => ({
           invoice_id: invoice.id,
-          user_id: tenantId,
+          business_id: tenantId, user_id: ownerId,
           product_id: item.product_id || null,
           name: item.name || item.Name || item.item_name || item.ItemName || item.product || item.Product || '',
           hsn: item.hsn || item.HSN || item.hsn_code || null,
@@ -944,7 +946,7 @@ export async function bulkImportInvoices(userId, invoices) {
       if (inv.payments && Array.isArray(inv.payments)) {
         const paymentRows = inv.payments.map(payment => ({
           invoice_id: invoice.id,
-          user_id: tenantId,
+          business_id: tenantId, user_id: ownerId,
           amount: parseFloat(payment.amount || payment.Amount || 0) || 0,
           payment_mode: payment.payment_mode || payment.PaymentMode || payment.mode || payment.Mode || 'Cash',
           note: payment.note || payment.Note || payment.remarks || payment.Remarks || '',
@@ -965,8 +967,9 @@ export async function bulkImportInvoices(userId, invoices) {
 export async function bulkImportPayments(userId, payments) {
   const user = await verifyWritePermission('create', 'invoice_payments');
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const rows = payments.map(p => ({
-    user_id: tenantId,
+    business_id: tenantId, user_id: ownerId,
     invoice_id: p.invoice_id || null, // Can be null if invoice not yet imported
     amount: parseFloat(p.amount || p.Amount || p.payment_amount || p.PaymentAmount || 0) || 0,
     payment_mode: p.payment_mode || p.PaymentMode || p.mode || p.Mode || p.method || p.Method || 'Cash',
@@ -988,15 +991,17 @@ export async function bulkImportPayments(userId, payments) {
 // Payment Reminders
 export async function getPaymentReminders(userId) {
   const tenantId = await getTenantId(userId);
-  const { data, error } = await supabase.from('payment_reminders').select('*').eq('user_id', tenantId).order('reminder_date', { ascending: true });
+  const ownerId = await getTenantOwnerId(tenantId);
+  const { data, error } = await supabase.from('payment_reminders').select('*').eq('business_id', tenantId).order('reminder_date', { ascending: true });
   if (error) throw error; return data;
 }
 
 export async function createPaymentReminder(userId, reminder) {
   const user = await verifyWritePermission('create', 'payment_reminders');
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase.from('payment_reminders').insert([{
-    user_id: tenantId,
+    business_id: tenantId, user_id: ownerId,
     invoice_id: reminder.invoice_id,
     customer_id: reminder.customer_id,
     reminder_date: reminder.reminder_date,
@@ -1049,20 +1054,22 @@ export async function deleteReminder(reminderId) {
 
 export async function getDueInvoicesForReminders(userId) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const today = new Date().toISOString().split('T')[0];
   const { data, error } = await supabase.from('invoices').select(`
     *,
     customers!inner(name, phone)
-  `).eq('user_id', tenantId).in('status', ['unpaid', 'partial']).lte('due_date', today).gt('balance', 0);
+  `).eq('business_id', tenantId).in('status', ['unpaid', 'partial']).lte('due_date', today).gt('balance', 0);
   if (error) throw error; return data;
 }
 
 // Inventory Management
 export async function getLowStockProducts(userId, threshold = 10) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase.from('products')
     .select('*')
-    .eq('user_id', tenantId);
+    .eq('business_id', tenantId);
   if (error) throw error;
   // Filter products that track stock, are not services, and where stock is less than or equal to min_stock (and min_stock > 0)
   return (data || []).filter(p => p.track_stock && !p.is_service && p.stock <= p.min_stock && p.min_stock > 0);
@@ -1070,14 +1077,15 @@ export async function getLowStockProducts(userId, threshold = 10) {
 
 export async function updateProductStock(productId, quantity, operation = 'add') {
   const user = await verifyWritePermission('update', 'products', productId);
-  const tenantId = await getTenantId(user.id);
+  const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const qty = operation === 'add' ? parseFloat(quantity) : -parseFloat(quantity);
   
   // Insert a stock adjustment row to let DB triggers handle stock update atomically and sync accounting
   const { data: adj, error: adjErr } = await supabase
     .from('stock_adjustments')
     .insert([{
-      user_id: tenantId,
+      business_id: tenantId, user_id: ownerId,
       product_id: productId,
       qty: qty,
       reason: 'Quick Stock Update'
@@ -1103,8 +1111,9 @@ export async function updateProductStock(productId, quantity, operation = 'add')
 export async function createStockAlert(userId, alert) {
   const user = await verifyWritePermission('create', 'stock_alerts');
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase.from('stock_alerts').insert([{
-    user_id: tenantId,
+    business_id: tenantId, user_id: ownerId,
     product_id: alert.product_id,
     threshold: alert.threshold || 10,
     alert_type: alert.alert_type || 'low_stock', // 'low_stock', 'out_of_stock', 'reorder'
@@ -1124,12 +1133,13 @@ export async function createStockAlert(userId, alert) {
 
 export async function getStockAlerts(userId) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase.from('stock_alerts')
     .select(`
       *,
       products!inner(name, stock, unit)
     `)
-    .eq('user_id', tenantId)
+    .eq('business_id', tenantId)
     .eq('status', 'active')
     .order('created_at', { ascending: false });
   if (error) throw error; return data;
@@ -1168,13 +1178,14 @@ export async function deleteStockAlert(alertId) {
 // Recurring Invoices
 export async function getRecurringInvoices(userId) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase.from('recurring_invoices')
     .select(`
       *,
       customers!inner(name),
       base_invoice!inner(invoice_no, subtotal, gst_amount, discount, total)
     `)
-    .eq('user_id', tenantId)
+    .eq('business_id', tenantId)
     .eq('status', 'active')
     .order('next_invoice_date', { ascending: true });
   if (error) throw error; return data;
@@ -1183,8 +1194,9 @@ export async function getRecurringInvoices(userId) {
 export async function createRecurringInvoice(userId, recurring) {
   const user = await verifyWritePermission('create', 'recurring_invoices');
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase.from('recurring_invoices').insert([{
-    user_id: tenantId,
+    business_id: tenantId, user_id: ownerId,
     base_invoice_id: recurring.base_invoice_id,
     customer_id: recurring.customer_id,
     frequency: recurring.frequency, // 'daily', 'weekly', 'monthly', 'quarterly', 'yearly'
@@ -1426,6 +1438,7 @@ export async function deleteExpense(id) {
 // ─── PAYMENTS (all) ──────────────────────────────────────────────
 export async function getAllPayments(userId, page = null, limit = null, search = '', partyType = '') {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   
   const selectClause = partyType 
     ? '*, customers!inner(name, type), invoices(invoice_no, total, paid, balance, status, customers(name)), payment_allocations(*, invoices(invoice_no, customers(name)))'
@@ -1434,7 +1447,7 @@ export async function getAllPayments(userId, page = null, limit = null, search =
   let query = supabase
     .from('invoice_payments')
     .select(selectClause, { count: 'exact' })
-    .eq('user_id', tenantId);
+    .eq('business_id', tenantId);
     
   if (partyType) {
     query = query.eq('customers.type', partyType);
@@ -1460,10 +1473,11 @@ export async function getAllPayments(userId, page = null, limit = null, search =
 export async function recordBulkPayment(userId, customerId, totalAmount, paymentMode, note, allocations) {
   const user = await verifyWritePermission('create', 'invoice_payments');
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
 
   // 1. Create parent payment record (invoice_id remains null)
   const { data: payment, error: payError } = await supabase.from('invoice_payments').insert([{
-    user_id: tenantId,
+    business_id: tenantId, user_id: ownerId,
     customer_id: customerId,
     amount: totalAmount,
     payment_mode: paymentMode,
@@ -1474,7 +1488,7 @@ export async function recordBulkPayment(userId, customerId, totalAmount, payment
   // 2. Create allocations (trigger will handle invoice status/balance updates)
   if (allocations && allocations.length > 0) {
     const allocationRows = allocations.map(a => ({
-      user_id: tenantId,
+      business_id: tenantId, user_id: ownerId,
       payment_id: payment.id,
       invoice_id: a.invoiceId,
       amount: a.amount
@@ -1497,10 +1511,11 @@ export async function recordBulkPayment(userId, customerId, totalAmount, payment
 
 export async function getUnpaidInvoices(userId, type = 'sale') {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase
     .from('invoices')
     .select('*, customers(name, phone)')
-    .eq('user_id', tenantId)
+    .eq('business_id', tenantId)
     .eq('type', type)
     .in('status', ['unpaid', 'partial', 'overdue'])
     .order('due_date', { ascending: true });
@@ -1511,6 +1526,7 @@ export async function getUnpaidInvoices(userId, type = 'sale') {
 // ─── DASHBOARD ───────────────────────────────────────────────────
 export async function getDashboardStats(userId, timeRange = 'month') {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   if (!tenantId) return null;
 
   const toDateKey = (date) => {
@@ -1583,15 +1599,15 @@ export async function getDashboardStats(userId, timeRange = 'month') {
     totalPendingRes,
     paymentsRes
   ] = await Promise.all([
-    supabase.from('invoices').select('type, document_kind, total, paid, date, last_payment_mode, customer_id, customers(name), invoice_items(name, qty)').eq('user_id', tenantId).gte('date', queryStartDateStr),
-    supabase.from('expenses').select('amount, date').eq('user_id', tenantId).gte('date', queryStartDateStr),
-    supabase.from('products').select('*', { count: 'exact', head: true }).eq('user_id', tenantId),
-    supabase.from('customers').select('*', { count: 'exact', head: true }).eq('user_id', tenantId).eq('type', 'customer'),
-    supabase.from('products').select('id, name, stock, unit').eq('user_id', tenantId).lte('stock', 5).order('stock', { ascending: true }).limit(5),
-    supabase.from('invoices').select('id, invoice_no, total, status, date, customers(name)').eq('user_id', tenantId).eq('type', 'sale').eq('document_kind', 'sale_invoice').order('date', { ascending: false }).order('created_at', { ascending: false }).limit(5),
-    supabase.from('invoices').select('id, invoice_no, total, balance, status, due_date, customers(name, phone)').eq('user_id', tenantId).eq('type', 'sale').eq('document_kind', 'sale_invoice').eq('status', 'overdue').limit(5),
-    supabase.from('invoices').select('balance').eq('user_id', tenantId).eq('type', 'sale').eq('document_kind', 'sale_invoice').gt('balance', 0),
-    supabase.from('invoice_payments').select('amount, created_at, payment_mode').eq('user_id', tenantId).gte('created_at', `${queryStartDateStr}T00:00:00Z`)
+    supabase.from('invoices').select('type, document_kind, total, paid, date, last_payment_mode, customer_id, customers(name), invoice_items(name, qty)').eq('business_id', tenantId).gte('date', queryStartDateStr),
+    supabase.from('expenses').select('amount, date').eq('business_id', tenantId).gte('date', queryStartDateStr),
+    supabase.from('products').select('*', { count: 'exact', head: true }).eq('business_id', tenantId),
+    supabase.from('customers').select('*', { count: 'exact', head: true }).eq('business_id', tenantId).eq('type', 'customer'),
+    supabase.from('products').select('id, name, stock, unit').eq('business_id', tenantId).lte('stock', 5).order('stock', { ascending: true }).limit(5),
+    supabase.from('invoices').select('id, invoice_no, total, status, date, customers(name)').eq('business_id', tenantId).eq('type', 'sale').eq('document_kind', 'sale_invoice').order('date', { ascending: false }).order('created_at', { ascending: false }).limit(5),
+    supabase.from('invoices').select('id, invoice_no, total, balance, status, due_date, customers(name, phone)').eq('business_id', tenantId).eq('type', 'sale').eq('document_kind', 'sale_invoice').eq('status', 'overdue').limit(5),
+    supabase.from('invoices').select('balance').eq('business_id', tenantId).eq('type', 'sale').eq('document_kind', 'sale_invoice').gt('balance', 0),
+    supabase.from('invoice_payments').select('amount, created_at, payment_mode').eq('business_id', tenantId).gte('created_at', `${queryStartDateStr}T00:00:00Z`)
   ]);
 
   const invoices = invoicesRes.data || [];
@@ -1766,9 +1782,10 @@ export async function getDashboardStats(userId, timeRange = 'month') {
 // ─── REPORTS ─────────────────────────────────────────────────────
 export async function getReportsSummary(userId, fromDate, toDate) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   
   // Sourced from invoices for GSTR-1 HSN summary details
-  let invQuery = supabase.from('invoices').select('*, invoice_items(*)').eq('user_id', tenantId);
+  let invQuery = supabase.from('invoices').select('*, invoice_items(*)').eq('business_id', tenantId);
   if (fromDate) invQuery = invQuery.gte('date', fromDate);
   if (toDate) invQuery = invQuery.lte('date', toDate);
   const { data: invoices } = await invQuery;
@@ -1791,7 +1808,7 @@ export async function getReportsSummary(userId, fromDate, toDate) {
   let glQuery = supabase
     .from('journal_items')
     .select('debit, credit, chart_of_accounts!inner(name, type), journal_entries!inner(date)')
-    .eq('user_id', tenantId);
+    .eq('business_id', tenantId);
     
   if (fromDate) glQuery = glQuery.gte('journal_entries.date', fromDate);
   if (toDate) glQuery = glQuery.lte('journal_entries.date', toDate);
@@ -1880,8 +1897,9 @@ export async function getCustomPermissionsForUser(userId) {
   return perms || [];
 }
 
-export async function getTeamInvites(ownerId) {
-  const tenantId = await getTenantId(ownerId);
+export async function getTeamInvites(userId) {
+  const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase.from('team_invites').select('*').eq('owner_id', tenantId).order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];
@@ -1889,7 +1907,8 @@ export async function getTeamInvites(ownerId) {
 
 export async function inviteTeamMember(ownerId, email, role) {
   const user = await verifyWritePermission('create', 'team_invites');
-  const tenantId = await getTenantId(ownerId);
+  const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase.from('team_invites').upsert([{
     owner_id: tenantId, email: email.toLowerCase().trim(), role, status: 'pending',
   }], { onConflict: 'owner_id,email' }).select().single();
@@ -1938,9 +1957,10 @@ export async function applyTeamInvite(userId, email) {
 
 export async function syncOverdueStatuses(userId) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const today = new Date().toISOString().split('T')[0];
   const { data: overdue } = await supabase.from('invoices').select('id')
-    .eq('user_id', tenantId).eq('type', 'sale').eq('document_kind', 'sale_invoice')
+    .eq('business_id', tenantId).eq('type', 'sale').eq('document_kind', 'sale_invoice')
     .gt('balance', 0).lt('due_date', today).neq('status', 'paid');
   for (const inv of overdue || []) {
     await supabase.from('invoices').update({ status: 'overdue' }).eq('id', inv.id);
@@ -1949,6 +1969,7 @@ export async function syncOverdueStatuses(userId) {
 
 export async function convertToInvoice(userId, sourceInvoiceId) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const source = await getInvoiceById(sourceInvoiceId);
   const items = (source.invoice_items || []).map((i) => ({
     product_id: i.product_id, name: i.name, hsn: i.hsn, qty: i.qty, price: i.price, gst: i.gst,
@@ -1971,14 +1992,15 @@ export async function convertToInvoice(userId, sourceInvoiceId) {
 
 export async function getPartyLedger(userId, partyId) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data: party } = await supabase.from('customers').select('*').eq('id', partyId).single();
   if (!party) throw new Error('Party not found');
   
   const { data: invoices } = await supabase.from('invoices').select('*')
-    .eq('user_id', tenantId).eq('customer_id', partyId).order('date', { ascending: true });
+    .eq('business_id', tenantId).eq('customer_id', partyId).order('date', { ascending: true });
     
   const { data: payments } = await supabase.from('invoice_payments').select('*, invoices(invoice_no)')
-    .eq('user_id', tenantId).eq('customer_id', partyId).eq('status', 'active');
+    .eq('business_id', tenantId).eq('customer_id', partyId).eq('status', 'active');
     
   let balance = 0;
   if (party.type === 'customer') {
@@ -2083,10 +2105,11 @@ export async function getPartyLedger(userId, partyId) {
 
 export async function getCashBook(userId) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase
     .from('journal_items')
     .select('*, chart_of_accounts!inner(name), journal_entries:entry_id(entry_no, date, description, reference_type)')
-    .eq('user_id', tenantId)
+    .eq('business_id', tenantId)
     .eq('chart_of_accounts.name', 'Cash Book');
   if (error) throw error;
   
@@ -2107,10 +2130,11 @@ export async function getCashBook(userId) {
 
 export async function getBankBook(userId) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase
     .from('journal_items')
     .select('*, chart_of_accounts!inner(name), journal_entries:entry_id(entry_no, date, description, reference_type)')
-    .eq('user_id', tenantId)
+    .eq('business_id', tenantId)
     .eq('chart_of_accounts.name', 'Bank Account');
   if (error) throw error;
   
@@ -2131,12 +2155,13 @@ export async function getBankBook(userId) {
 
 export async function getTrialBalance(userId, fromDate, toDate) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   
   // 1. Fetch COA to initialize map
   const { data: coaData, error: coaErr } = await supabase
     .from('chart_of_accounts')
     .select('id, name, code, type')
-    .eq('user_id', tenantId);
+    .eq('business_id', tenantId);
     
   if (coaErr) throw coaErr;
   
@@ -2158,7 +2183,7 @@ export async function getTrialBalance(userId, fromDate, toDate) {
   let query = supabase
     .from('journal_items')
     .select('debit, credit, account_id, chart_of_accounts!inner(name, code, type), journal_entries!inner(date)')
-    .eq('user_id', tenantId);
+    .eq('business_id', tenantId);
     
   if (fromDate) query = query.gte('journal_entries.date', fromDate);
   if (toDate) query = query.lte('journal_entries.date', toDate);
@@ -2208,11 +2233,12 @@ export async function getTrialBalance(userId, fromDate, toDate) {
 
 export async function getBalanceSheetData(userId, toDate) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   
   let glQuery = supabase
     .from('journal_items')
     .select('debit, credit, chart_of_accounts!inner(name, type), journal_entries!inner(date)')
-    .eq('user_id', tenantId);
+    .eq('business_id', tenantId);
     
   if (toDate) glQuery = glQuery.lte('journal_entries.date', toDate);
   
@@ -2288,11 +2314,12 @@ export async function getBalanceSheetData(userId, toDate) {
 
 export async function getCashFlowStatement(userId, fromDate, toDate) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   
   let glQuery = supabase
     .from('journal_items')
     .select('debit, credit, chart_of_accounts!inner(name), journal_entries!inner(date, reference_type)')
-    .eq('user_id', tenantId);
+    .eq('business_id', tenantId);
     
   if (fromDate) glQuery = glQuery.gte('journal_entries.date', fromDate);
   if (toDate) glQuery = glQuery.lte('journal_entries.date', toDate);
@@ -2375,12 +2402,13 @@ export async function reversePayment(paymentId, reason) {
 
 export async function getDayBook(userId, dateStr) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const targetDate = dateStr || new Date().toISOString().split('T')[0];
   
   const [invoicesRes, paymentsRes, expensesRes] = await Promise.all([
-    supabase.from('invoices').select('*, customers(name)').eq('user_id', tenantId).eq('date', targetDate),
-    supabase.from('invoice_payments').select('*, invoices(invoice_no, customers(name))').eq('user_id', tenantId).gte('created_at', `${targetDate}T00:00:00`).lte('created_at', `${targetDate}T23:59:59`),
-    supabase.from('expenses').select('*').eq('user_id', tenantId).eq('date', targetDate)
+    supabase.from('invoices').select('*, customers(name)').eq('business_id', tenantId).eq('date', targetDate),
+    supabase.from('invoice_payments').select('*, invoices(invoice_no, customers(name))').eq('business_id', tenantId).gte('created_at', `${targetDate}T00:00:00`).lte('created_at', `${targetDate}T23:59:59`),
+    supabase.from('expenses').select('*').eq('business_id', tenantId).eq('date', targetDate)
   ]);
   
   const entries = [
@@ -2418,8 +2446,9 @@ export async function getDayBook(userId, dateStr) {
 
 export async function getGstr1Summary(userId, fromDate, toDate) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   let query = supabase.from('invoices').select('*, invoice_items(*), customers(name, gstin, state)')
-    .eq('user_id', tenantId).eq('type', 'sale').eq('document_kind', 'sale_invoice');
+    .eq('business_id', tenantId).eq('type', 'sale').eq('document_kind', 'sale_invoice');
   if (fromDate) query = query.gte('date', fromDate);
   if (toDate) query = query.lte('date', toDate);
   const { data, error } = await query.order('date');
@@ -2441,11 +2470,12 @@ export async function deleteTeamInvite(id) {
 
 export async function getPartyStats(userId) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   
   const [invoicesRes, paymentsRes, partiesRes] = await Promise.all([
-    supabase.from('invoices').select('customer_id, total, paid, type, document_kind').eq('user_id', tenantId),
-    supabase.from('invoice_payments').select('customer_id, amount').eq('user_id', tenantId).eq('status', 'active'),
-    supabase.from('customers').select('id, type, opening_balance, opening_balance_type').eq('user_id', tenantId)
+    supabase.from('invoices').select('customer_id, total, paid, type, document_kind').eq('business_id', tenantId),
+    supabase.from('invoice_payments').select('customer_id, amount').eq('business_id', tenantId).eq('status', 'active'),
+    supabase.from('customers').select('id, type, opening_balance, opening_balance_type').eq('business_id', tenantId)
   ]);
 
   const invoices = invoicesRes.data || [];
@@ -2508,10 +2538,11 @@ export async function getPartyStats(userId) {
 
 export async function getStockAdjustments(userId) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase
     .from('stock_adjustments')
     .select('*, products(name, unit, purchase_price, sale_price)')
-    .eq('user_id', tenantId)
+    .eq('business_id', tenantId)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];
@@ -2520,11 +2551,12 @@ export async function getStockAdjustments(userId) {
 export async function createStockAdjustment(userId, adj) {
   const user = await verifyWritePermission('create', 'stock_adjustments');
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   
   const { data, error } = await supabase
     .from('stock_adjustments')
     .insert([{
-      user_id: tenantId,
+      business_id: tenantId, user_id: ownerId,
       product_id: adj.product_id,
       qty: parseFloat(adj.qty),
       reason: adj.reason,
@@ -2548,10 +2580,11 @@ export async function createStockAdjustment(userId, adj) {
 
 export async function getStockTransfers(userId) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase
     .from('stock_transfers')
     .select('*, products(name, unit)')
-    .eq('user_id', tenantId)
+    .eq('business_id', tenantId)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];
@@ -2560,11 +2593,12 @@ export async function getStockTransfers(userId) {
 export async function createStockTransfer(userId, transfer) {
   const user = await verifyWritePermission('create', 'stock_transfers');
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   
   const { data, error } = await supabase
     .from('stock_transfers')
     .insert([{
-      user_id: tenantId,
+      business_id: tenantId, user_id: ownerId,
       product_id: transfer.product_id,
       from_location: transfer.from_location,
       to_location: transfer.to_location,
@@ -2590,10 +2624,11 @@ export async function createStockTransfer(userId, transfer) {
 
 export async function getInventoryValuation(userId) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase
     .from('products')
     .select('stock, purchase_price, sale_price')
-    .eq('user_id', tenantId);
+    .eq('business_id', tenantId);
   if (error) throw error;
   
   const totalPurchaseValue = (data || []).reduce((sum, p) => sum + ((parseFloat(p.stock) || 0) * (parseFloat(p.purchase_price) || 0)), 0);
@@ -2608,18 +2643,19 @@ export async function getInventoryValuation(userId) {
 
 export async function backupBusinessData(userId) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   
   const [profile, customers, products, invoices, invoice_items, invoice_payments, expenses, recurring_invoices, payment_reminders, stock_alerts] = await Promise.all([
-    supabase.from('business_profile').select('*').eq('user_id', tenantId).maybeSingle(),
-    supabase.from('customers').select('*').eq('user_id', tenantId),
-    supabase.from('products').select('*').eq('user_id', tenantId),
-    supabase.from('invoices').select('*').eq('user_id', tenantId),
-    supabase.from('invoice_items').select('*').eq('user_id', tenantId),
-    supabase.from('invoice_payments').select('*').eq('user_id', tenantId),
-    supabase.from('expenses').select('*').eq('user_id', tenantId),
-    supabase.from('recurring_invoices').select('*').eq('user_id', tenantId),
-    supabase.from('payment_reminders').select('*').eq('user_id', tenantId),
-    supabase.from('stock_alerts').select('*').eq('user_id', tenantId),
+    supabase.from('business_profile').select('*').eq('business_id', tenantId).maybeSingle(),
+    supabase.from('customers').select('*').eq('business_id', tenantId),
+    supabase.from('products').select('*').eq('business_id', tenantId),
+    supabase.from('invoices').select('*').eq('business_id', tenantId),
+    supabase.from('invoice_items').select('*').eq('business_id', tenantId),
+    supabase.from('invoice_payments').select('*').eq('business_id', tenantId),
+    supabase.from('expenses').select('*').eq('business_id', tenantId),
+    supabase.from('recurring_invoices').select('*').eq('business_id', tenantId),
+    supabase.from('payment_reminders').select('*').eq('business_id', tenantId),
+    supabase.from('stock_alerts').select('*').eq('business_id', tenantId),
   ]);
 
   return {
@@ -2641,67 +2677,68 @@ export async function backupBusinessData(userId) {
 export async function restoreBusinessData(userId, backup) {
   const user = await verifyWritePermission('create', 'business_profile');
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   
   if (!backup || typeof backup !== 'object') throw new Error('Invalid backup file');
   
   await Promise.all([
-    supabase.from('invoices').delete().eq('user_id', tenantId),
-    supabase.from('products').delete().eq('user_id', tenantId),
-    supabase.from('customers').delete().eq('user_id', tenantId),
-    supabase.from('expenses').delete().eq('user_id', tenantId),
-    supabase.from('recurring_invoices').delete().eq('user_id', tenantId),
-    supabase.from('payment_reminders').delete().eq('user_id', tenantId),
-    supabase.from('stock_alerts').delete().eq('user_id', tenantId),
+    supabase.from('invoices').delete().eq('business_id', tenantId),
+    supabase.from('products').delete().eq('business_id', tenantId),
+    supabase.from('customers').delete().eq('business_id', tenantId),
+    supabase.from('expenses').delete().eq('business_id', tenantId),
+    supabase.from('recurring_invoices').delete().eq('business_id', tenantId),
+    supabase.from('payment_reminders').delete().eq('business_id', tenantId),
+    supabase.from('stock_alerts').delete().eq('business_id', tenantId),
   ]);
 
   if (backup.business_profile) {
-    const cleanProfile = { ...backup.business_profile, user_id: tenantId };
+    const cleanProfile = { ...backup.business_profile, business_id: tenantId, user_id: ownerId };
     delete cleanProfile.id;
     await supabase.from('business_profile').upsert([cleanProfile], { onConflict: 'user_id' });
   }
 
   if (backup.customers && backup.customers.length > 0) {
-    const rows = backup.customers.map(c => ({ ...c, user_id: tenantId }));
+    const rows = backup.customers.map(c => ({ ...c, business_id: tenantId, user_id: ownerId }));
     await supabase.from('customers').insert(rows);
   }
 
   if (backup.products && backup.products.length > 0) {
-    const rows = backup.products.map(p => ({ ...p, user_id: tenantId }));
+    const rows = backup.products.map(p => ({ ...p, business_id: tenantId, user_id: ownerId }));
     await supabase.from('products').insert(rows);
   }
 
   if (backup.invoices && backup.invoices.length > 0) {
-    const rows = backup.invoices.map(i => ({ ...i, user_id: tenantId }));
+    const rows = backup.invoices.map(i => ({ ...i, business_id: tenantId, user_id: ownerId }));
     await supabase.from('invoices').insert(rows);
   }
 
   if (backup.invoice_items && backup.invoice_items.length > 0) {
-    const rows = backup.invoice_items.map(ii => ({ ...ii, user_id: tenantId }));
+    const rows = backup.invoice_items.map(ii => ({ ...ii, business_id: tenantId, user_id: ownerId }));
     await supabase.from('invoice_items').insert(rows);
   }
 
   if (backup.invoice_payments && backup.invoice_payments.length > 0) {
-    const rows = backup.invoice_payments.map(ip => ({ ...ip, user_id: tenantId }));
+    const rows = backup.invoice_payments.map(ip => ({ ...ip, business_id: tenantId, user_id: ownerId }));
     await supabase.from('invoice_payments').insert(rows);
   }
 
   if (backup.expenses && backup.expenses.length > 0) {
-    const rows = backup.expenses.map(e => ({ ...e, user_id: tenantId }));
+    const rows = backup.expenses.map(e => ({ ...e, business_id: tenantId, user_id: ownerId }));
     await supabase.from('expenses').insert(rows);
   }
 
   if (backup.recurring_invoices && backup.recurring_invoices.length > 0) {
-    const rows = backup.recurring_invoices.map(r => ({ ...r, user_id: tenantId }));
+    const rows = backup.recurring_invoices.map(r => ({ ...r, business_id: tenantId, user_id: ownerId }));
     await supabase.from('recurring_invoices').insert(rows);
   }
 
   if (backup.payment_reminders && backup.payment_reminders.length > 0) {
-    const rows = backup.payment_reminders.map(r => ({ ...r, user_id: tenantId }));
+    const rows = backup.payment_reminders.map(r => ({ ...r, business_id: tenantId, user_id: ownerId }));
     await supabase.from('payment_reminders').insert(rows);
   }
 
   if (backup.stock_alerts && backup.stock_alerts.length > 0) {
-    const rows = backup.stock_alerts.map(s => ({ ...s, user_id: tenantId }));
+    const rows = backup.stock_alerts.map(s => ({ ...s, business_id: tenantId, user_id: ownerId }));
     await supabase.from('stock_alerts').insert(rows);
   }
 
@@ -2719,10 +2756,11 @@ export async function restoreBusinessData(userId, backup) {
 // ─── WAREHOUSE ENGINE ────────────────────────────────────────────
 export async function getWarehouses(userId) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase
     .from('warehouses')
     .select('*')
-    .eq('user_id', tenantId)
+    .eq('business_id', tenantId)
     .order('name');
   if (error) throw error;
   return data || [];
@@ -2731,10 +2769,11 @@ export async function getWarehouses(userId) {
 export async function createWarehouse(userId, wh) {
   const user = await verifyWritePermission('create', 'warehouses');
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase
     .from('warehouses')
     .insert([{
-      user_id: tenantId,
+      business_id: tenantId, user_id: ownerId,
       name: wh.name,
       code: wh.code || null,
       address: wh.address || null
@@ -2768,10 +2807,11 @@ export async function deleteWarehouse(id) {
 
 export async function getWarehouseStocks(userId) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase
     .from('warehouse_stocks')
     .select('*, warehouses(name), products(name, unit, stock)')
-    .eq('user_id', tenantId);
+    .eq('business_id', tenantId);
   if (error) throw error;
   return data || [];
 }
@@ -2788,10 +2828,11 @@ export async function getWarehouseStocksForProduct(productId) {
 // ─── JOURNAL ENTRY ENGINE ────────────────────────────────────────
 export async function getChartOfAccounts(userId) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase
     .from('chart_of_accounts')
     .select('*')
-    .eq('user_id', tenantId)
+    .eq('business_id', tenantId)
     .order('code', { ascending: true });
   if (error) throw error;
   return data || [];
@@ -2800,10 +2841,11 @@ export async function getChartOfAccounts(userId) {
 // ─── JOURNAL ENTRY ENGINE ────────────────────────────────────────
 export async function getJournalEntries(userId, page = null, limit = null) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   let query = supabase
     .from('journal_entries')
     .select('*, journal_items(*, chart_of_accounts(name))', { count: 'exact' })
-    .eq('user_id', tenantId)
+    .eq('business_id', tenantId)
     .order('date', { ascending: false })
     .order('created_at', { ascending: false });
     
@@ -2821,6 +2863,7 @@ export async function getJournalEntries(userId, page = null, limit = null) {
 export async function createManualJournalEntry(userId, entry, items) {
   const user = await verifyWritePermission('create', 'journal_entries');
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
 
   // Validate debits sum matches credits sum
   const totalDebit = items.reduce((sum, item) => sum + (parseFloat(item.debit) || 0), 0);
@@ -2834,7 +2877,7 @@ export async function createManualJournalEntry(userId, entry, items) {
   const { data: je, error: jeErr } = await supabase
     .from('journal_entries')
     .insert([{
-      user_id: tenantId,
+      business_id: tenantId, user_id: ownerId,
       entry_no: entry.entry_no || ('JV-MAN-' + Date.now().toString().slice(-6)),
       date: entry.date,
       description: entry.description,
@@ -2849,14 +2892,14 @@ export async function createManualJournalEntry(userId, entry, items) {
   const { data: coas } = await supabase
     .from('chart_of_accounts')
     .select('id, name')
-    .eq('user_id', tenantId);
+    .eq('business_id', tenantId);
     
   const coaMap = {};
   (coas || []).forEach(c => coaMap[c.id] = c.name);
 
   // 2. Insert items
   const itemRows = items.map(item => ({
-    user_id: tenantId,
+    business_id: tenantId, user_id: ownerId,
     entry_id: je.id,
     account_id: item.account_id,
     account_name: coaMap[item.account_id] || 'Unknown Account',
@@ -2888,10 +2931,11 @@ export async function createManualJournalEntry(userId, entry, items) {
 // ─── TEAM CUSTOM ROLES & PERMISSIONS MATRIX ──────────────────────
 export async function getCustomRoles(userId) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase
     .from('custom_roles')
     .select('*, custom_permissions(*)')
-    .eq('user_id', tenantId);
+    .eq('business_id', tenantId);
   if (error) throw error;
   return data || [];
 }
@@ -2899,18 +2943,19 @@ export async function getCustomRoles(userId) {
 export async function createCustomRole(userId, name, modulePermissions) {
   const user = await verifyWritePermission('create', 'custom_roles');
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
 
   // 1. Create the role
   const { data: role, error: roleErr } = await supabase
     .from('custom_roles')
-    .insert([{ user_id: tenantId, name }])
+    .insert([{ business_id: tenantId, user_id: ownerId, name }])
     .select()
     .single();
   if (roleErr) throw roleErr;
 
   // 2. Create the permissions rows
   const permissionRows = Object.entries(modulePermissions).map(([mod, perms]) => ({
-    user_id: tenantId,
+    business_id: tenantId, user_id: ownerId,
     role_id: role.id,
     module_name: mod,
     can_read: !!perms.can_read,
@@ -2954,12 +2999,13 @@ export async function deleteCustomRole(id) {
 export async function updateCustomRolePermissions(roleId, userId, modulePermissions) {
   const user = await verifyWritePermission('update', 'custom_roles', roleId);
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
 
   for (const [mod, perms] of Object.entries(modulePermissions)) {
     await supabase
       .from('custom_permissions')
       .upsert({
-        user_id: tenantId,
+        business_id: tenantId, user_id: ownerId,
         role_id: roleId,
         module_name: mod,
         can_read: !!perms.can_read,
@@ -3000,10 +3046,11 @@ export async function updateUserCustomRole(targetUserId, customRoleId) {
 // ─── SMART MIGRATION ENGINE ──────────────────────────────────────
 export async function getMigrationJobs(userId) {
   const tenantId = await getTenantId(userId);
+  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase
     .from('migration_jobs')
     .select('*')
-    .eq('user_id', tenantId)
+    .eq('business_id', tenantId)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];

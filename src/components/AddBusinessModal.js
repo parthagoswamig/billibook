@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { supabase } from '../db';
+import { saveProfile } from '../lib/db';
+import { useUser } from '../lib/useUser';
+import { useRole } from '../lib/RoleContext';
 
 const modalOverlayStyle = {
   position: 'fixed',
@@ -18,7 +20,7 @@ const modalOverlayStyle = {
 const modalStyle = {
   backgroundColor: '#1e293b',
   borderRadius: '12px',
-  width: '450px',
+  width: '400px',
   maxWidth: '90%',
   padding: '24px',
   boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.2)',
@@ -26,29 +28,29 @@ const modalStyle = {
   border: '1px solid rgba(255,255,255,0.1)'
 };
 
-export default function AddBusinessModal({ isOpen, onClose, currentEmail }) {
-  const [step, setStep] = useState(1);
-  const [aliasEmail, setAliasEmail] = useState('');
+export default function AddBusinessModal({ isOpen, onClose }) {
+  const [businessName, setBusinessName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { user } = useUser();
+  const { refreshBusinesses } = useRole();
 
   if (!isOpen) return null;
 
-  const suggestAlias = () => {
-    if (!currentEmail) return '';
-    const parts = currentEmail.split('@');
-    if (parts.length !== 2) return currentEmail;
-    // Remove existing alias if any
-    const baseName = parts[0].split('+')[0];
-    return `${baseName}+business${Math.floor(Math.random() * 100)}@${parts[1]}`;
-  };
-
-  const handleNext = () => {
-    if (step === 1) {
-      setAliasEmail(suggestAlias());
-      setStep(2);
-    } else {
+  const handleCreate = async () => {
+    if (!businessName.trim()) return;
+    setLoading(true);
+    try {
+      await saveProfile(user?.id, { business_name: businessName }, true);
+      // Wait for it to be created, refresh the context, and close
+      refreshBusinesses();
       onClose();
-      // Optional: auto logout to force sign up
-      supabase.auth.signOut();
+      // Optionally reload the page to cleanly switch context
+      window.location.reload();
+    } catch (e) {
+      console.error(e);
+      alert('Failed to create new business. Check connection.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -62,67 +64,47 @@ export default function AddBusinessModal({ isOpen, onClose, currentEmail }) {
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '24px', cursor: 'pointer' }}>&times;</button>
         </div>
 
-        {step === 1 && (
-          <div>
-            <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', lineHeight: '1.6', marginBottom: '16px' }}>
-              To ensure 100% data security and isolation, each business in KhataPe is tied to a separate account. 
-            </p>
-            <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '12px', borderRadius: '8px', marginBottom: '20px' }}>
-              <h4 style={{ color: '#60A5FA', margin: '0 0 8px 0', fontSize: '14px' }}>How it works:</h4>
-              <ol style={{ margin: 0, paddingLeft: '20px', color: 'rgba(255,255,255,0.9)', fontSize: '13px', lineHeight: '1.5' }}>
-                <li>We will log you out.</li>
-                <li>Sign up with a new email (or a Gmail alias like <strong>you+biz2@gmail.com</strong>).</li>
-                <li>Create the new business.</li>
-                <li>Go to Settings  Team and <strong>Invite</strong> your main email ({currentEmail}).</li>
-                <li>Log back in as {currentEmail} and accept the invite!</li>
-              </ol>
-            </div>
-            <button 
-              onClick={handleNext}
-              style={{ width: '100%', padding: '12px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', transition: 'background 0.2s' }}
-            >
-              Continue to Step 2 ➡️
-            </button>
-          </div>
-        )}
+        <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', lineHeight: '1.6', marginBottom: '20px' }}>
+          Create a new isolated business. You can switch between your businesses anytime from the sidebar.
+        </p>
 
-        {step === 2 && (
-          <div>
-            <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', lineHeight: '1.6', marginBottom: '16px' }}>
-              If you use Gmail, you can use a <strong>"+" alias</strong> so you don't need to create a brand new email account. All emails will still go to your main inbox!
-            </p>
-            
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px' }}>Suggested Alias Email to Sign Up With:</label>
-              <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', padding: '10px' }}>
-                <input 
-                  type="text" 
-                  value={aliasEmail} 
-                  onChange={(e) => setAliasEmail(e.target.value)}
-                  style={{ background: 'transparent', border: 'none', color: '#10B981', fontSize: '14px', fontWeight: 'bold', width: '100%', outline: 'none' }}
-                />
-              </div>
-              <p style={{ fontSize: '11px', color: '#F59E0B', marginTop: '8px' }}>
-                ⚠️ Copy this email. You will use this to sign up now.
-              </p>
-            </div>
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px' }}>Business Name</label>
+          <input 
+            type="text" 
+            value={businessName} 
+            onChange={(e) => setBusinessName(e.target.value)}
+            placeholder="e.g. ABC Enterprises"
+            style={{ 
+              background: 'rgba(0,0,0,0.3)', 
+              border: '1px solid rgba(255,255,255,0.2)', 
+              borderRadius: '8px', 
+              padding: '12px', 
+              color: '#fff', 
+              fontSize: '14px', 
+              width: '100%', 
+              outline: 'none' 
+            }}
+          />
+        </div>
 
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button 
-                onClick={() => setStep(1)}
-                style={{ flex: 1, padding: '12px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
-              >
-                Back
-              </button>
-              <button 
-                onClick={handleNext}
-                style={{ flex: 2, padding: '12px', background: '#10B981', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
-              >
-                Sign Out & Create New ✨
-              </button>
-            </div>
-          </div>
-        )}
+        <button 
+          onClick={handleCreate}
+          disabled={loading || !businessName.trim()}
+          style={{ 
+            width: '100%', 
+            padding: '12px', 
+            background: loading || !businessName.trim() ? '#475569' : '#10B981', 
+            color: '#fff', 
+            border: 'none', 
+            borderRadius: '8px', 
+            fontWeight: 'bold', 
+            cursor: loading || !businessName.trim() ? 'not-allowed' : 'pointer', 
+            transition: 'background 0.2s' 
+          }}
+        >
+          {loading ? 'Creating...' : 'Create Business ✨'}
+        </button>
       </div>
     </div>
   );
