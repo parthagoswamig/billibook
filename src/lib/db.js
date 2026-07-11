@@ -189,13 +189,23 @@ export async function getActiveRole(userId, tenantId) {
     return getUserRole(userId);
   }
   
+  const { data: profile } = await supabase
+    .from('business_profile')
+    .select('user_id')
+    .eq('id', tenantId)
+    .maybeSingle();
+
+  if (profile && profile.user_id === userId) {
+    return 'admin';
+  }
+  
   const { data: { user } } = await supabase.auth.getUser();
   if (user && user.email) {
     const { data: invite, error } = await supabase
       .from('team_invites')
       .select('role')
       .eq('email', user.email.toLowerCase().trim())
-      .eq('owner_id', tenantId)
+      .or(`business_id.eq.${tenantId},owner_id.eq.${tenantId}`)
       .eq('status', 'accepted')
       .maybeSingle();
     if (!error && invite) {
