@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import { saveProfile } from '../lib/db';
 import { useUser } from '../lib/useUser';
 import { useRole } from '../lib/RoleContext';
@@ -13,7 +14,7 @@ const modalOverlayStyle = {
   display: 'flex',
   justifyContent: 'center',
   alignItems: 'center',
-  zIndex: 1000,
+  zIndex: 999999, // Ensure it's very high
   backdropFilter: 'blur(4px)'
 };
 
@@ -41,10 +42,8 @@ export default function AddBusinessModal({ isOpen, onClose }) {
     setLoading(true);
     try {
       await saveProfile(user?.id, { business_name: businessName }, true);
-      // Wait for it to be created, refresh the context, and close
       refreshBusinesses();
       onClose();
-      // Optionally reload the page to cleanly switch context
       window.location.reload();
     } catch (e) {
       console.error(e);
@@ -54,7 +53,7 @@ export default function AddBusinessModal({ isOpen, onClose }) {
     }
   };
 
-  return (
+  const modalContent = (
     <div style={modalOverlayStyle}>
       <div style={modalStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -108,4 +107,6 @@ export default function AddBusinessModal({ isOpen, onClose }) {
       </div>
     </div>
   );
+
+  return ReactDOM.createPortal(modalContent, document.body);
 }
