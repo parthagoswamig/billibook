@@ -7,7 +7,7 @@ import { toast } from 'react-hot-toast';
 export default function AuthPage() {
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState('login');
-  const [form, setForm] = useState({ email: '', password: '', businessName: '' });
+  const [form, setForm] = useState({ email: '', password: '', businessName: '', phone: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
@@ -25,6 +25,7 @@ export default function AuthPage() {
     setError(''); setSuccess('');
     if (!form.email || !form.password) return setError('Email & password required');
     if (mode === 'signup' && !form.businessName.trim()) return setError('Business name required');
+    if (mode === 'signup' && !form.phone.trim()) return setError('Mobile number required');
     if (mode === 'signup' && form.password.length < 6) return setError('Password must be at least 6 characters');
     setLoading(true);
     try {
@@ -37,7 +38,7 @@ export default function AuthPage() {
           style: { fontWeight: '600', borderRadius: '10px' }
         });
       } else {
-        const { error } = await signUp(form.email, form.password, form.businessName);
+        const { error } = await signUp(form.email, form.password, form.businessName, form.phone);
         if (error) setError(error.message);
         else {
           setShowVerifyModal(true);
@@ -146,10 +147,16 @@ export default function AuthPage() {
         {/* Form */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {mode === 'signup' && (
-            <div>
-              <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Business Name</label>
-              <input value={form.businessName} onChange={e => update('businessName', e.target.value)} placeholder="e.g. Sharma Traders" style={inp} />
-            </div>
+            <>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Business Name</label>
+                <input value={form.businessName} onChange={e => update('businessName', e.target.value)} placeholder="e.g. Sharma Traders" style={inp} />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Mobile Number</label>
+                <input type="tel" value={form.phone} onChange={e => update('phone', e.target.value)} placeholder="e.g. 9876543210" style={inp} />
+              </div>
+            </>
           )}
           <div>
             <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Email Address</label>
@@ -218,7 +225,7 @@ export default function AuthPage() {
               onClick={() => {
                 setShowVerifyModal(false);
                 setMode('login');
-                setForm({ email: '', password: '', businessName: '' });
+                setForm({ email: '', password: '', businessName: '', phone: '' });
               }}
               style={{
                 width: '100%', background: '#1E3A5F', color: '#fff', border: 'none', 

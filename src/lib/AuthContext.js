@@ -7,10 +7,11 @@ const AuthContext = createContext({});
 async function ensureBusinessProfile(user) {
   if (!supabase || !user?.id) return;
   const businessName = user.user_metadata?.business_name?.trim();
+  const phone = user.user_metadata?.phone?.trim() || null;
   const email = user.email || null;
   const { data: existing, error } = await supabase
     .from('business_profile')
-    .select('id, business_name, email')
+    .select('id, business_name, email, phone')
     .eq('user_id', user.id)
     .maybeSingle();
 
@@ -21,6 +22,7 @@ async function ensureBusinessProfile(user) {
       user_id: user.id,
       business_name: businessName || null,
       email,
+      phone,
     }]);
     return;
   }
@@ -28,6 +30,7 @@ async function ensureBusinessProfile(user) {
   const updates = {};
   if (!existing.business_name && businessName) updates.business_name = businessName;
   if (!existing.email && email) updates.email = email;
+  if (!existing.phone && phone) updates.phone = phone;
   if (Object.keys(updates).length > 0) {
     await supabase.from('business_profile').update(updates).eq('user_id', user.id);
   }
@@ -55,7 +58,7 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = (email, password, businessName) => {
+  const signUp = (email, password, businessName, phone) => {
     if (!supabase) return Promise.resolve({ data: null, error: new Error(supabaseConfigError) });
     return supabase.auth.signUp({
       email,
@@ -63,6 +66,7 @@ export function AuthProvider({ children }) {
       options: {
         data: {
           business_name: businessName?.trim() || '',
+          phone: phone?.trim() || '',
         },
       },
     });
