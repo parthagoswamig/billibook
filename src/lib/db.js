@@ -1905,10 +1905,10 @@ export async function getTeamInvites(userId) {
   return data || [];
 }
 
-export async function inviteTeamMember(ownerId, email, role) {
+export async function inviteTeamMember(userId, email, role) {
   const user = await verifyWritePermission('create', 'team_invites');
   const tenantId = await getTenantId(userId);
-  const ownerId = await getTenantOwnerId(tenantId);
+  const resolvedOwnerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase.from('team_invites').upsert([{
     owner_id: tenantId, email: email.toLowerCase().trim(), role, status: 'pending',
   }], { onConflict: 'owner_id,email' }).select().single();
