@@ -209,90 +209,15 @@
   overflow-x: auto;
 }
 
-.bar-chart {
-  display: flex;
-  gap: 18px;
-  height: 320px;
-  align-items: flex-end;
-  min-width: 560px;
-  padding: 24px 10px 10px;
-  border-bottom: 2px solid #E5E7EB;
-  background: linear-gradient(180deg, #F8FAFF 0%, #FFFFFF 100%);
-  border-radius: 18px;
+/* Recharts overrides to match KhataPe style */
+.recharts-tooltip-cursor {
+  fill: var(--accent-light);
+  opacity: 0.2;
 }
 
-.chart-bar-group {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  min-width: 64px;
-}
-
-.bar-wrapper {
-  display: flex;
-  gap: 10px;
-  height: 100%;
-  align-items: flex-end;
-  width: 100%;
-  justify-content: center;
-}
-
-.bar {
-  width: 28px;
-  min-height: 10px;
-  border-radius: 10px 10px 0 0;
-  position: relative;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-  cursor: pointer;
-}
-
-.bar:hover {
-  opacity: 0.85;
-  transform: scaleY(1.02);
-  transform-origin: bottom;
-}
-
-.sales-bar {
-  background: linear-gradient(180deg, #6366F1 0%, #4338CA 100%);
-  box-shadow: 0 -2px 6px rgba(99,102,241,0.3);
-}
-
-.expenses-bar {
-  background: linear-gradient(180deg, #FB923C 0%, #EA580C 100%);
-  box-shadow: 0 -2px 6px rgba(249,115,22,0.3);
-}
-
-.bar-label {
-  display: block;
-  position: absolute;
-  top: -30px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
-  background: #1E293B;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 6px;
-  pointer-events: none;
-  z-index: 10;
-  opacity: 0.9;
-}
-
-.bar:hover .bar-label {
-  display: block;
-}
-
-.bar-month {
-  font-size: 12px;
-  color: var(--text-muted);
-  font-weight: 700;
-  text-transform: uppercase;
-  text-align: center;
-  letter-spacing: 0.6px;
+.recharts-default-tooltip {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1) !important;
+  border-radius: var(--radius-lg) !important;
 }
 
 @media (max-width: 768px) {
@@ -300,27 +225,6 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
-  }
-
-  .bar-chart {
-    height: 280px;
-    min-width: 480px;
-    gap: 14px;
-    padding: 18px 8px 10px;
-  }
-
-  .bar {
-    width: 22px;
-  }
-
-  .chart-bar-group {
-    min-width: 54px;
-  }
-
-  .bar-label {
-    font-size: 10px;
-    top: -28px;
-    padding: 3px 6px;
   }
 }
 

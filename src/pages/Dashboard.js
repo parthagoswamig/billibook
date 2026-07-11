@@ -7,6 +7,19 @@ import { getDashboardStats } from '../lib/db';
 import { formatCurrency, formatDate, buildWhatsAppUrl } from '../lib/utils';
 import { useRole } from '../lib/RoleContext';
 import { getVisitStats } from '../lib/visitTracker';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
 import './Dashboard.css';
 function Dashboard() {
   const { userId, loading: userLoading } = useUser();
@@ -67,14 +80,6 @@ function Dashboard() {
 
   // Simple chart data visualization
   const salesData = stats?.chartData || [];
-  const maxSales = Math.max(1, ...salesData.map(d => Math.max(d.sales, d.expenses)));
-  const chartMinWidth = Math.max(560, salesData.length * 72);
-  const getBarHeight = (value) => {
-    if (!value || value <= 0) return '0%';
-    const scaledHeight = (value / maxSales) * 100;
-    return `${Math.max(scaledHeight, 8)}%`;
-  };
-
   return (
     <PageSection eyebrow="Overview" title="Dashboard" description="Live business snapshot with advanced analytics.">
       {/* Time Range Selector */}
@@ -158,41 +163,24 @@ function Dashboard() {
         <div className="content-card chart-card">
           <div className="chart-header">
             <h3>📈 Sales vs Expenses</h3>
-            <div className="chart-legend">
-              <span className="legend-item">
-                <span className="legend-color sales"></span>
-                Sales
-              </span>
-              <span className="legend-item">
-                <span className="legend-color expenses"></span>
-                Expenses
-              </span>
-            </div>
           </div>
-          <div className="chart-container">
-            <div className="bar-chart" style={{ minWidth: `${chartMinWidth}px` }}>
-              {salesData.map((data, index) => (
-                <div key={index} className="chart-bar-group">
-                  <div className="bar-wrapper">
-                    <div 
-                      className="bar sales-bar"
-                      style={{ height: getBarHeight(data.sales) }}
-                      title={`Sales: ${fmt(data.sales)}`}
-                    >
-                      <span className="bar-label">{fmt(data.sales)}</span>
-                    </div>
-                    <div 
-                      className="bar expenses-bar"
-                      style={{ height: getBarHeight(data.expenses) }}
-                      title={`Expenses: ${fmt(data.expenses)}`}
-                    >
-                      <span className="bar-label">{fmt(data.expenses)}</span>
-                    </div>
-                  </div>
-                  <span className="bar-month">{data.month}</span>
-                </div>
-              ))}
-            </div>
+          <div className="chart-container" style={{ height: '300px', width: '100%', marginTop: '20px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={salesData} margin={{ top: 20, right: 20, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.1)" />
+                <XAxis dataKey="month" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)', fontSize: 12}} axisLine={false} tickLine={false} />
+                <YAxis stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)', fontSize: 12}} tickFormatter={(value) => `${currency === 'USD' ? '$' : '₹'}${value >= 1000 ? (value/1000).toFixed(1)+'k' : value}`} axisLine={false} tickLine={false} />
+                <Tooltip 
+                  cursor={{fill: 'rgba(255,255,255,0.05)'}}
+                  contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-color)' }}
+                  itemStyle={{ color: 'var(--text-color)', fontSize: '14px', fontWeight: 'bold' }}
+                  formatter={(value) => fmt(value)}
+                />
+                <Legend wrapperStyle={{ paddingTop: '10px', color: 'var(--text-color)' }} />
+                <Bar dataKey="sales" name="Sales" fill="#10B981" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <Bar dataKey="expenses" name="Expenses" fill="#EF4444" radius={[4, 4, 0, 0]} maxBarSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>
@@ -207,23 +195,32 @@ function Dashboard() {
               <p className="muted-text">No payment records this period.</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {stats.paymentModes.map((pm, idx) => (
-                <div key={idx}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>
-                    <span>{pm.mode}</span>
-                    <span>{fmt(pm.amount)} ({pm.percentage}%)</span>
-                  </div>
-                  <div style={{ height: '6px', background: '#F1F5F9', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{
-                      height: '100%',
-                      background: idx === 0 ? 'var(--accent)' : idx === 1 ? 'var(--success)' : '#94A3B8',
-                      width: `${pm.percentage}%`,
-                      borderRadius: '4px'
-                    }} />
-                  </div>
-                </div>
-              ))}
+            <div style={{ height: '240px', width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={stats.paymentModes}
+                    dataKey="amount"
+                    nameKey="mode"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                  >
+                    {stats.paymentModes.map((entry, index) => {
+                      const COLORS = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EC4899'];
+                      return <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />;
+                    })}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-color)' }}
+                    itemStyle={{ color: 'var(--text-color)', fontWeight: 'bold' }}
+                    formatter={(value) => fmt(value)}
+                  />
+                  <Legend verticalAlign="bottom" height={36} />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
           )}
         </article>
