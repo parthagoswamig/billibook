@@ -10,6 +10,7 @@ export default function AuthPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [visitStats, setVisitStats] = useState(null);
 
   // Fetch login stats on mount (tracking is done in App.js on SIGNED_IN event)
@@ -32,7 +33,9 @@ export default function AuthPage() {
       } else {
         const { error } = await signUp(form.email, form.password, form.businessName);
         if (error) setError(error.message);
-        else setSuccess('Account created! Please check your email to confirm, then login.');
+        else {
+          setShowVerifyModal(true);
+        }
       }
     } catch (e) {
       setError(e.message);
@@ -177,7 +180,53 @@ export default function AuthPage() {
           from { opacity: 0; transform: translateY(-10px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
       `}</style>
+
+      {/* Email Verification Modal Popup */}
+      {showVerifyModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0, 0, 0, 0.65)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+          padding: 20
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: 24, padding: '40px 30px', maxWidth: 400, width: '100%',
+            textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+            animation: 'scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+          }}>
+            <div style={{ fontSize: 64, marginBottom: 16 }}>📧</div>
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: '#1E3A5F', marginBottom: 12 }}>
+              Check Your Email
+            </h2>
+            <p style={{ fontSize: 15, color: '#4B5563', lineHeight: 1.5, marginBottom: 24 }}>
+              We've sent a verification link to<br/>
+              <strong>{form.email}</strong>.<br/><br/>
+              Please check your inbox and click the link to activate your account.
+            </p>
+            <button 
+              onClick={() => {
+                setShowVerifyModal(false);
+                setMode('login');
+                setForm({ email: '', password: '', businessName: '' });
+              }}
+              style={{
+                width: '100%', background: '#1E3A5F', color: '#fff', border: 'none', 
+                borderRadius: 12, padding: '14px', fontSize: 16, fontWeight: 700, 
+                cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 4px 12px rgba(30,58,95,0.2)'
+              }}
+              onMouseOver={e => e.currentTarget.style.background = '#254a7c'}
+              onMouseOut={e => e.currentTarget.style.background = '#1E3A5F'}
+            >
+              Okay, I understand
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

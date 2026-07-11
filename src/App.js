@@ -6,6 +6,7 @@ import { supabase, supabaseConfigError } from './db';
 import { RoleProvider, useRole } from './lib/RoleContext';
 import { BusinessProvider } from './lib/BusinessContext';
 import { ThemeProvider } from './lib/ThemeContext';
+import { Toaster, toast } from 'react-hot-toast';
 import Customers from './pages/Customers';
 import Dashboard from './pages/Dashboard';
 import Expenses from './pages/Expenses';
@@ -155,6 +156,13 @@ function App() {
       if (s?.user?.id && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
         trackLogin(s.user.id); // trackLogin handles dedup — once per user per day
       }
+      if (event === 'SIGNED_IN') {
+        toast.success('Login Successful!', { 
+          duration: 3000, 
+          position: 'top-center',
+          style: { fontWeight: '600', borderRadius: '10px' }
+        });
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -189,6 +197,7 @@ function App() {
 
   return (
     <Router>
+      <Toaster />
       {session ? (
         <ThemeProvider>
           <RoleProvider>
