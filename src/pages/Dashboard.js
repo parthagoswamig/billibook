@@ -33,7 +33,15 @@ function Dashboard() {
   const fmt = (n) => formatCurrency(n, currency);
 
   useEffect(() => {
+    // Initial fetch
     getVisitStats().then(setVisitStats);
+    
+    // Poll every 10 seconds for truly "LIVE" stats
+    const interval = setInterval(() => {
+      getVisitStats().then(setVisitStats);
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {

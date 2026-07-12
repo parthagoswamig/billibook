@@ -9,6 +9,7 @@ const config: CapacitorConfig = {
     url: 'https://khatape360.vercel.app',
     cleartext: false,
     androidScheme: 'https',
+    allowNavigation: ['khatape360.vercel.app', '*.vercel.app']
   },
 };
 
