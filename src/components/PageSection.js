@@ -1,4 +1,5 @@
 import React from 'react';
+import { BannerAd, NativeAd } from './AdsterraAds';
 
 function PageSection({ eyebrow, title, description, actions, children }) {
   return (
@@ -13,7 +14,9 @@ function PageSection({ eyebrow, title, description, actions, children }) {
         {actions ? <div className="page-header-actions">{actions}</div> : null}
       </header>
       <section className="page-section">
+        <NativeAd />
         {children}
+        <BannerAd />
       </section>
     </>
   );
