@@ -9,6 +9,7 @@ import { useRole } from '../lib/RoleContext';
 import { DOCUMENT_KINDS, getInvoices, getParties, getProducts, getNextInvoiceNo, saveInvoice, getProfile, addParty, getWarehouses } from '../lib/db';
 import { calcInvoiceTotals, formatCurrency, formatDate, exportToCSV, addDays } from '../lib/utils';
 import { supabase } from '../db';
+import QuickScanInvoice from './QuickScanInvoice';
 
 const INDIAN_STATES = [
   "Andaman and Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar",
@@ -38,6 +39,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
   const [totalCount, setTotalCount] = useState(0);
   const limit = 50;
   const [showModal, setShowModal] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -405,6 +407,16 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
           <>
             <input className="form-input search-input" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             <button className="secondary-button" type="button" onClick={() => exportToCSV(`${documentKind}.csv`, ['No', 'Party', 'Date', 'Total', 'Status'], filtered.map((i) => [i.invoice_no, i.customers?.name, i.date, i.total, i.status]))}>📥 CSV</button>
+            {canCreate('invoices') && documentKind === 'sale_invoice' && (
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => setShowScanModal(true)}
+                style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', border: 'none', fontWeight: '700' }}
+              >
+                🔍 Quick Scan
+              </button>
+            )}
             {canCreate('invoices') && <button className="primary-button" type="button" onClick={openCreate}>+ Create</button>}
           </>
         }
@@ -1179,6 +1191,17 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
           z-index: 1099;
         }
       `}</style>
+
+      {showScanModal && (
+        <QuickScanInvoice
+          products={products}
+          onClose={() => setShowScanModal(false)}
+          onInvoiceCreated={(invoiceId) => {
+            load();
+            navigate(`/invoices/${invoiceId}`);
+          }}
+        />
+      )}
     </>
   );
 }
