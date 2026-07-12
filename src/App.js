@@ -53,7 +53,7 @@ function ProtectedRoute({ element, requiredRole, module }) {
 function SuperAdminRoute({ element }) {
   const { user, loading } = useUser();
   if (loading) return <div className="loading-screen">Loading...</div>;
-  if (user?.email !== 'parthagoswamig@gmail.com') {
+  if (user?.email?.toLowerCase().trim() !== 'parthagoswamig@gmail.com') {
     return <Navigate to="/dashboard" replace />;
   }
   return element;

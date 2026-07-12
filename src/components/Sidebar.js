@@ -256,7 +256,7 @@ function Sidebar({ onClose }) {
           <p className="sidebar-section-label">Main</p>
           <nav className="sidebar-nav">
             {mainLinks.map(link)}
-            {user?.email === 'parthagoswamig@gmail.com' && (
+            {user?.email?.toLowerCase().trim() === 'parthagoswamig@gmail.com' && (
               <NavLink 
                 to="/super-admin" 
                 className={({ isActive }) => isActive ? 'sidebar-link sidebar-link-active' : 'sidebar-link'}
