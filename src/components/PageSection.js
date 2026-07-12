@@ -17,6 +17,11 @@ function PageSection({ eyebrow, title, description, actions, children }) {
         <NativeAd />
         {children}
         <BannerAd />
+        <div style={{ textAlign: 'center', marginTop: '10px', marginBottom: '20px' }}>
+          <a href="https://www.effectivecpmnetwork.com/q8kxujad2?key=6b17e45207e4f3df9e6653b05155503d" target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#9ca3af', textDecoration: 'underline' }}>
+            Sponsored: View Special Offers
+          </a>
+        </div>
       </section>
     </>
   );

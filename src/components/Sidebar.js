@@ -298,9 +298,6 @@ function Sidebar({ onClose }) {
       </div>
 
       <div className="sidebar-footer-wrapper">
-        <a href="https://www.effectivecpmnetwork.com/q8kxujad2?key=6b17e45207e4f3df9e6653b05155503d" target="_blank" rel="noreferrer" className="sidebar-download-app-btn" style={{ background: '#ec4899', marginBottom: '10px', boxShadow: '0 4px 14px 0 rgba(236, 72, 153, 0.39)' }}>
-          🎁 Special Offers
-        </a>
         <a href="/KhataPe.apk" download="KhataPe.apk" className="sidebar-download-app-btn">
           📱 Download App
         </a>
