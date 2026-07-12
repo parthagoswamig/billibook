@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { supabase, supabaseConfigError } from '../db';
 import { ensureUserRole, applyTeamInvite, saveProfile } from '../lib/db';
 import { toast } from 'react-hot-toast';
+import { Link } from 'react-router-dom';
 import './Auth.css';
 
 function Auth() {
@@ -152,10 +153,16 @@ function Auth() {
             <span className="apk-icon">📱</span>
             <div className="apk-text">
               <strong>Download Android App</strong>
-              <span>Get KhataPe GST Billing on your mobile phone</span>
+              <span>Manage your business on the go</span>
             </div>
-            <span className="apk-arrow">⬇️</span>
           </a>
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '12px', color: '#6b7280' }}>
+          <Link to="/privacy-policy" style={{ color: '#6b7280', textDecoration: 'none', margin: '0 8px' }}>Privacy Policy</Link> | 
+          <Link to="/terms-and-conditions" style={{ color: '#6b7280', textDecoration: 'none', margin: '0 8px' }}>Terms & Conditions</Link> <br/>
+          <Link to="/about-us" style={{ color: '#6b7280', textDecoration: 'none', margin: '0 8px' }}>About Us</Link> | 
+          <Link to="/contact-us" style={{ color: '#6b7280', textDecoration: 'none', margin: '0 8px' }}>Contact Us</Link>
         </div>
       </div>
 

@@ -32,6 +32,10 @@ import Inventory from './pages/Inventory';
 import { Browser } from '@capacitor/browser';
 import Accounting from './pages/Accounting';
 import { trackLogin } from './lib/visitTracker';
+import PrivacyPolicy from './pages/public/PrivacyPolicy';
+import TermsAndConditions from './pages/public/TermsAndConditions';
+import AboutUs from './pages/public/AboutUs';
+import ContactUs from './pages/public/ContactUs';
 
 function ProtectedRoute({ element, requiredRole, module }) {
   const { hasPermission, hasModulePermission, loading, userRole } = useRole();
@@ -198,20 +202,29 @@ function App() {
   return (
     <Router>
       <Toaster />
-      {session ? (
-        <ThemeProvider>
-          <RoleProvider>
-            <BusinessProvider>
-              <AppShell />
-            </BusinessProvider>
-          </RoleProvider>
-        </ThemeProvider>
-      ) : (
-        <>
-          {supabaseConfigError && <div className="config-banner">{supabaseConfigError}</div>}
-          <Auth />
-        </>
-      )}
+      <Routes>
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+        <Route path="/about-us" element={<AboutUs />} />
+        <Route path="/contact-us" element={<ContactUs />} />
+        
+        <Route path="*" element={
+          session ? (
+            <ThemeProvider>
+              <RoleProvider>
+                <BusinessProvider>
+                  <AppShell />
+                </BusinessProvider>
+              </RoleProvider>
+            </ThemeProvider>
+          ) : (
+            <>
+              {supabaseConfigError && <div className="config-banner">{supabaseConfigError}</div>}
+              <Auth />
+            </>
+          )
+        } />
+      </Routes>
 
       {updateAvailable && (
         <div className="update-modal-overlay">
