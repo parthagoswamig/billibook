@@ -11,17 +11,36 @@ function PageSection({ eyebrow, title, description, actions, children }) {
             {eyebrow ? `${eyebrow}  /  ` : ''} {description || ''}
           </p>
         </div>
-        {actions ? <div className="page-header-actions">{actions}</div> : null}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          {actions ? <div className="page-header-actions">{actions}</div> : null}
+          <a 
+            href="https://www.effectivecpmnetwork.com/q8kxujad2?key=6b17e45207e4f3df9e6653b05155503d" 
+            target="_blank" 
+            rel="noreferrer" 
+            style={{ 
+              fontSize: '13px', 
+              fontWeight: '600', 
+              color: '#db2777', 
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: '#fce7f3',
+              padding: '6px 12px',
+              borderRadius: '20px',
+              boxShadow: '0 2px 4px rgba(219, 39, 119, 0.1)',
+              border: '1px solid #fbcfe8',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            🎁 Special Offers
+          </a>
+        </div>
       </header>
       <section className="page-section">
         <NativeAd />
         {children}
         <BannerAd />
-        <div style={{ textAlign: 'center', marginTop: '10px', marginBottom: '20px' }}>
-          <a href="https://www.effectivecpmnetwork.com/q8kxujad2?key=6b17e45207e4f3df9e6653b05155503d" target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#9ca3af', textDecoration: 'underline' }}>
-            Sponsored: View Special Offers
-          </a>
-        </div>
       </section>
     </>
   );
