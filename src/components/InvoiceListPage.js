@@ -81,7 +81,9 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
     if (!q) return products.slice(0, 10);
     return products.filter(p => 
       p.name?.toLowerCase().includes(q) || 
-      (p.hsn && p.hsn.toLowerCase().includes(q))
+      (p.hsn && p.hsn.toLowerCase().includes(q)) ||
+      (p.barcode && p.barcode.toLowerCase().includes(q)) ||
+      (p.sku && p.sku.toLowerCase().includes(q))
     ).slice(0, 10);
   };
 

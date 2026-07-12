@@ -36,10 +36,10 @@ function Dashboard() {
     // Initial fetch
     getVisitStats().then(setVisitStats);
     
-    // Poll every 10 seconds for truly "LIVE" stats
+    // Poll every 60 seconds for live stats (10s was too aggressive)
     const interval = setInterval(() => {
       getVisitStats().then(setVisitStats);
-    }, 10000);
+    }, 60000);
 
     return () => clearInterval(interval);
   }, []);

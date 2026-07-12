@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import PageSection from '../components/PageSection';
 import SimpleTable from '../components/SimpleTable';
 import { useUser } from '../lib/useUser';
-import { getExpenses, addExpense, deleteExpense, bulkImportExpenses } from '../lib/db';
+import { getExpenses, addExpense, updateExpense, deleteExpense, bulkImportExpenses } from '../lib/db';
 import { formatCurrency, formatDate, exportToCSV, EXPENSE_CATEGORIES, importFromCSV } from '../lib/utils';
 import { useRole } from '../lib/RoleContext';
 function Expenses() {
@@ -11,6 +11,7 @@ function Expenses() {
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editId, setEditId] = useState(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('All');
@@ -32,9 +33,44 @@ function Expenses() {
 
   useEffect(() => { load(); }, [tenantId]);
 
+  const openAdd = () => {
+    setEditId(null);
+    setForm({ category: 'Rent', description: '', amount: '', date: new Date().toISOString().split('T')[0], payment_mode: 'Cash' });
+    setError('');
+    setShowModal(true);
+  };
+
+  const openEdit = (exp) => {
+    setEditId(exp.id);
+    setForm({ category: exp.category, description: exp.description || '', amount: exp.amount, date: exp.date, payment_mode: exp.payment_mode || 'Cash' });
+    setError('');
+    setShowModal(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!tenantId || !form.category || !form.amount) return;
+    if (editId) {
+      if (!canCreate('expenses')) return;
+      try {
+        await updateExpense(editId, {
+          category: form.category,
+          description: form.description,
+          amount: parseFloat(form.amount),
+          date: form.date,
+          payment_mode: form.payment_mode,
+        });
+        setShowModal(false);
+        setEditId(null);
+        setForm({ category: 'Rent', description: '', amount: '', date: new Date().toISOString().split('T')[0], payment_mode: 'Cash' });
+        setMessage('✓ Expense updated');
+        setTimeout(() => setMessage(''), 3000);
+        load();
+      } catch (err) {
+        setError(err.message);
+      }
+      return;
+    }
     if (!canCreate('expenses')) return;
     try {
       await addExpense(tenantId, {
@@ -118,7 +154,7 @@ function Expenses() {
           <>
             {canCreate() && <button className="secondary-button" type="button" onClick={handleImport}>📤 Import CSV</button>}
             <button className="secondary-button" type="button" onClick={handleExport}>📥 Export CSV</button>
-            {canCreate() && <button className="primary-button" type="button" onClick={() => { setShowModal(true); setError(''); }}>+ Add expense</button>}
+            {canCreate() && <button className="primary-button" type="button" onClick={openAdd}>+ Add expense</button>}
           </>
         }
       >
@@ -181,7 +217,10 @@ function Expenses() {
               {filteredExpenses.map((e) => (
                 <div key={e.id} className="table-action-row">
                   <span>{e.category} — {e.description || 'No description'}</span>
-                  {canDelete() && <button className="action-button danger-btn" type="button" onClick={() => handleDelete(e.id)}>Delete</button>}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {canCreate() && <button className="action-button" type="button" onClick={() => openEdit(e)}>Edit</button>}
+                    {canDelete() && <button className="action-button danger-btn" type="button" onClick={() => handleDelete(e.id)}>Delete</button>}
+                  </div>
                 </div>
               ))}
             </div>
@@ -193,8 +232,8 @@ function Expenses() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Add Expense</h3>
-              <button className="modal-close" type="button" onClick={() => setShowModal(false)}>✕</button>
+              <h3>{editId ? 'Edit Expense' : 'Add Expense'}</h3>
+              <button className="modal-close" type="button" onClick={() => { setShowModal(false); setEditId(null); }}>✕</button>
             </div>
             <form onSubmit={handleSubmit} className="modal-form">
               <label className="form-label"><span>Category *</span>

@@ -6,7 +6,7 @@ import { supabase, supabaseConfigError } from './db';
 import { RoleProvider, useRole } from './lib/RoleContext';
 import { BusinessProvider } from './lib/BusinessContext';
 import { ThemeProvider } from './lib/ThemeContext';
-import { Toaster, toast } from 'react-hot-toast';
+import { Toaster } from 'react-hot-toast';
 import Customers from './pages/Customers';
 import Dashboard from './pages/Dashboard';
 import Expenses from './pages/Expenses';
@@ -172,41 +172,11 @@ function App() {
       if (s?.user?.id && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
         trackLogin(s.user.id); // trackLogin handles dedup — once per user per day
       }
-      if (event === 'SIGNED_IN') {
-        toast.success('Login Successful!', { 
-          duration: 3000, 
-          position: 'top-center',
-          style: { fontWeight: '600', borderRadius: '10px' }
-        });
-      }
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    async function checkForUpdate() {
-      try {
-        const response = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
-        if (!response.ok) return;
-        const data = await response.json();
-        if (!isMounted || !data?.version) return;
-        if (data.version !== CURRENT_VERSION) {
-          setOnlineVersion(data.version);
-          setUpdateUrl(data.url || '/KhataPe.apk');
-          setUpdateAvailable(true);
-        }
-      } catch (_err) {
-        // Ignore update lookup failures.
-      }
-    }
-
-    checkForUpdate();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  // Note: Version check already handled in the first useEffect above
 
 
   if (authLoading) return <div className="loading-screen">Loading...</div>;
