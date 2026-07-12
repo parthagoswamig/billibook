@@ -50,8 +50,32 @@ function Auth() {
         const { data, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
         if (loginError) setError(loginError.message);
         else if (data.user) {
-          await ensureUserRole(data.user.id, 'viewer');
+          // If first login after signup, they need the admin role
+          await ensureUserRole(data.user.id, 'admin');
           await applyTeamInvite(data.user.id, email);
+          
+          // Ensure business profile exists (using metadata from signup)
+          const meta = data.user.user_metadata || {};
+          const bName = meta.business_name || '';
+          const bPhone = meta.phone || '';
+          
+          const { data: existingProfile } = await supabase
+            .from('business_profile')
+            .select('id, phone')
+            .eq('user_id', data.user.id)
+            .maybeSingle();
+
+          if (!existingProfile) {
+            await supabase.from('business_profile').insert([{
+              user_id: data.user.id,
+              business_name: bName || null,
+              email: data.user.email,
+              phone: bPhone || null,
+            }]);
+          } else if (!existingProfile.phone && bPhone) {
+            await supabase.from('business_profile').update({ phone: bPhone }).eq('id', existingProfile.id);
+          }
+
           toast.success('Login Successful!', { 
             duration: 3000, 
             position: 'top-center',
@@ -59,17 +83,14 @@ function Auth() {
           });
         }
       } else {
-        const { data, error: signupError } = await supabase.auth.signUp({
+        const { error: signupError } = await supabase.auth.signUp({
           email,
           password,
           options: { data: { business_name: businessName.trim(), phone: phone.trim() } },
         });
         if (signupError) setError(signupError.message);
         else {
-          if (data.user) {
-            await ensureUserRole(data.user.id, 'admin');
-            await saveProfile(data.user.id, { business_name: businessName.trim(), email, phone: phone.trim() });
-          }
+          // Profile & Role creation moved to login due to email confirmation / RLS
           setShowVerifyModal(true);
         }
       }
