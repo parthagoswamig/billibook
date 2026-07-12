@@ -7,6 +7,7 @@ import { getDashboardStats } from '../lib/db';
 import { formatCurrency, formatDate, buildWhatsAppUrl } from '../lib/utils';
 import { useRole } from '../lib/RoleContext';
 import { getVisitStats } from '../lib/visitTracker';
+import { BannerAd, NativeAd } from '../components/AdsterraAds';
 import {
   ResponsiveContainer,
   BarChart,
@@ -165,6 +166,7 @@ function Dashboard() {
         ))}
       </div>
 
+      <BannerAd />
 
       {/* Sales Chart */}
       <div className="chart-section">
@@ -409,6 +411,9 @@ function Dashboard() {
           </div>
         </div>
       )}
+
+      <NativeAd />
+
       <style>{`
         @keyframes pulse-dot {
           0%, 100% { box-shadow: 0 0 0 3px rgba(74,222,128,0.25); }
