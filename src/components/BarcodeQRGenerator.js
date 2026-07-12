@@ -235,16 +235,14 @@ function BarcodeQRGenerator({ type = 'qr', data, label, onGenerate }) {
                 Reset
               </button>
             </div>
-            {generated && (
-              <div className="generated-preview">
-                <canvas 
-                  ref={canvasRef} 
-                  width={300} 
-                  height={100} 
-                  className="barcode-preview"
-                />
-              </div>
-            )}
+            <div className="generated-preview" style={{ display: generated ? 'block' : 'none' }}>
+              <canvas 
+                ref={canvasRef} 
+                width={300} 
+                height={100} 
+                className="barcode-preview"
+              />
+            </div>
           </>
         )}
       </div>
