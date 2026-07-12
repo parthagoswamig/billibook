@@ -1,8 +1,12 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 function AboutUs() {
   return (
     <div style={{ maxWidth: '800px', margin: '40px auto', padding: '20px', fontFamily: 'Inter, sans-serif', lineHeight: '1.6', color: '#333' }}>
+      <Link to="/" style={{ display: 'inline-block', marginBottom: '20px', color: '#1a56db', textDecoration: 'none', fontWeight: 'bold' }}>
+        &larr; Back to Home
+      </Link>
       <h1 style={{ color: '#1a56db', borderBottom: '2px solid #e5e7eb', paddingBottom: '10px' }}>About Us</h1>
       
       <p>Welcome to <strong>KhataPe</strong>, your number one source for all things related to cloud-based billing, invoicing, and inventory management. We're dedicated to giving you the very best platform, with a focus on dependability, customer service, and uniqueness.</p>

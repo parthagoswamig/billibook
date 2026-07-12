@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 function ContactUs() {
   const [status, setStatus] = useState('');
@@ -11,6 +12,9 @@ function ContactUs() {
 
   return (
     <div style={{ maxWidth: '800px', margin: '40px auto', padding: '20px', fontFamily: 'Inter, sans-serif', lineHeight: '1.6', color: '#333' }}>
+      <Link to="/" style={{ display: 'inline-block', marginBottom: '20px', color: '#1a56db', textDecoration: 'none', fontWeight: 'bold' }}>
+        &larr; Back to Home
+      </Link>
       <h1 style={{ color: '#1a56db', borderBottom: '2px solid #e5e7eb', paddingBottom: '10px' }}>Contact Us</h1>
       
       <p>Have any questions? We'd love to hear from you.</p>
@@ -18,7 +22,7 @@ function ContactUs() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', marginTop: '30px' }}>
         <div>
           <h3>Get in Touch</h3>
-          <p><strong>Email:</strong> support@khatape360.vercel.app</p>
+          <p><strong>Email:</strong> your-email@gmail.com</p>
           <p><strong>Business Hours:</strong> Monday - Friday, 9:00 AM - 6:00 PM</p>
           <p>Whether you have a question about features, trials, pricing, need a demo, or anything else, our team is ready to answer all your questions.</p>
         </div>

@@ -1,8 +1,12 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 function PrivacyPolicy() {
   return (
     <div style={{ maxWidth: '800px', margin: '40px auto', padding: '20px', fontFamily: 'Inter, sans-serif', lineHeight: '1.6', color: '#333' }}>
+      <Link to="/" style={{ display: 'inline-block', marginBottom: '20px', color: '#1a56db', textDecoration: 'none', fontWeight: 'bold' }}>
+        &larr; Back to Home
+      </Link>
       <h1 style={{ color: '#1a56db', borderBottom: '2px solid #e5e7eb', paddingBottom: '10px' }}>Privacy Policy</h1>
       <p><strong>Effective Date:</strong> {new Date().toISOString().slice(0,10)}</p>
       
@@ -29,7 +33,7 @@ function PrivacyPolicy() {
       <p>We have implemented appropriate technical and organizational security measures designed to protect the security of any personal information we process. However, despite our safeguards and efforts to secure your information, no electronic transmission over the Internet or information storage technology can be guaranteed to be 100% secure.</p>
 
       <h2>6. Contact Us</h2>
-      <p>If you have questions or comments about this policy, you may email us at support@khatape360.vercel.app.</p>
+      <p>If you have questions or comments about this policy, you may email us at your-email@gmail.com.</p>
     </div>
   );
 }

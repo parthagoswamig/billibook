@@ -1,8 +1,12 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 function TermsAndConditions() {
   return (
     <div style={{ maxWidth: '800px', margin: '40px auto', padding: '20px', fontFamily: 'Inter, sans-serif', lineHeight: '1.6', color: '#333' }}>
+      <Link to="/" style={{ display: 'inline-block', marginBottom: '20px', color: '#1a56db', textDecoration: 'none', fontWeight: 'bold' }}>
+        &larr; Back to Home
+      </Link>
       <h1 style={{ color: '#1a56db', borderBottom: '2px solid #e5e7eb', paddingBottom: '10px' }}>Terms and Conditions</h1>
       <p><strong>Effective Date:</strong> {new Date().toISOString().slice(0,10)}</p>
 
@@ -29,7 +33,7 @@ function TermsAndConditions() {
       <p>We reserve the right, at our sole discretion, to modify or replace these Terms at any time. By continuing to access or use our Service after those revisions become effective, you agree to be bound by the revised terms.</p>
 
       <h2>7. Contact Us</h2>
-      <p>If you have any questions about these Terms, please contact us at support@khatape360.vercel.app.</p>
+      <p>If you have any questions about these Terms, please contact us at your-email@gmail.com.</p>
     </div>
   );
 }
