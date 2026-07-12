@@ -7,12 +7,12 @@ export function BannerAd() {
     if (bannerRef.current && !bannerRef.current.firstChild) {
       const conf = document.createElement('script');
       conf.type = 'text/javascript';
-      conf.innerHTML = `atOptions = {'key' : 'c5d1fb6d0b482d9418432b9d7446b16e','format' : 'iframe','height' : 250,'width' : 300,'params' : {}};`;
+      conf.innerHTML = `atOptions = {'key' : 'c7d2f4d417b67d8e041cb73f91fc4241','format' : 'iframe','height' : 50,'width' : 320,'params' : {}};`;
       bannerRef.current.appendChild(conf);
 
       const script = document.createElement('script');
       script.type = 'text/javascript';
-      script.src = 'https://www.highperformanceformat.com/c5d1fb6d0b482d9418432b9d7446b16e/invoke.js';
+      script.src = 'https://www.highperformanceformat.com/c7d2f4d417b67d8e041cb73f91fc4241/invoke.js';
       bannerRef.current.appendChild(script);
     }
   }, []);
@@ -25,19 +25,21 @@ export function NativeAd() {
 
   useEffect(() => {
     if (bannerRef.current && !bannerRef.current.firstChild) {
+      const conf = document.createElement('script');
+      conf.type = 'text/javascript';
+      conf.innerHTML = `atOptions = {'key' : '4103aecec2220fa5ea0bb8bdad9fa5be','format' : 'iframe','height' : 300,'width' : 160,'params' : {}};`;
+      bannerRef.current.appendChild(conf);
+
       const script = document.createElement('script');
       script.type = 'text/javascript';
-      script.async = true;
-      script.dataset.cfasync = 'false';
-      script.src = 'https://pl30327897.effectivecpmnetwork.com/787bd0ccaf5fc32eb262022b81c76e7e/invoke.js';
+      script.src = 'https://www.highperformanceformat.com/4103aecec2220fa5ea0bb8bdad9fa5be/invoke.js';
       bannerRef.current.appendChild(script);
     }
   }, []);
 
   return (
-    <div style={{ margin: '20px 0', textAlign: 'center' }}>
+    <div style={{ margin: '20px 0', display: 'flex', justifyContent: 'center' }}>
       <div ref={bannerRef}></div>
-      <div id="container-787bd0ccaf5fc32eb262022b81c76e7e"></div>
     </div>
   );
 }
