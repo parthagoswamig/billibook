@@ -3081,3 +3081,10 @@ export async function rollbackMigrationJob(jobId) {
 
   return data;
 }
+
+export async function getSuperAdminStats(email) {
+  const { data, error } = await supabase.rpc('get_super_admin_stats', { admin_email: email });
+  if (error) throw error;
+  return data;
+}
+

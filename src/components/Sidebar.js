@@ -254,7 +254,19 @@ function Sidebar({ onClose }) {
       <div className="sidebar-scrollable-content">
         <div className="sidebar-section">
           <p className="sidebar-section-label">Main</p>
-          <nav className="sidebar-nav">{mainLinks.map(link)}</nav>
+          <nav className="sidebar-nav">
+            {mainLinks.map(link)}
+            {user?.email === 'parthagoswamig@gmail.com' && (
+              <NavLink 
+                to="/super-admin" 
+                className={({ isActive }) => isActive ? 'sidebar-link sidebar-link-active' : 'sidebar-link'}
+                onClick={onClose}
+              >
+                <span className="sidebar-link-icon">👑</span>
+                <span className="sidebar-link-text">Super Admin</span>
+              </NavLink>
+            )}
+          </nav>
         </div>
 
         <div className="sidebar-section">

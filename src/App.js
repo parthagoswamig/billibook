@@ -36,6 +36,8 @@ import PrivacyPolicy from './pages/public/PrivacyPolicy';
 import TermsAndConditions from './pages/public/TermsAndConditions';
 import AboutUs from './pages/public/AboutUs';
 import ContactUs from './pages/public/ContactUs';
+import SuperAdmin from './pages/SuperAdmin';
+import { useUser } from './lib/useUser';
 
 function ProtectedRoute({ element, requiredRole, module }) {
   const { hasPermission, hasModulePermission, loading, userRole } = useRole();
@@ -45,6 +47,15 @@ function ProtectedRoute({ element, requiredRole, module }) {
     return element;
   }
   if (!hasPermission(requiredRole)) return <Navigate to="/dashboard" replace />;
+  return element;
+}
+
+function SuperAdminRoute({ element }) {
+  const { user, loading } = useUser();
+  if (loading) return <div className="loading-screen">Loading...</div>;
+  if (user?.email !== 'parthagoswamig@gmail.com') {
+    return <Navigate to="/dashboard" replace />;
+  }
   return element;
 }
 
@@ -79,6 +90,7 @@ function AppShell() {
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/super-admin" element={<SuperAdminRoute element={<SuperAdmin />} />} />
           <Route path="/invoices" element={<ProtectedRoute element={<Invoices />} requiredRole="viewer" module="invoices" />} />
           <Route path="/invoices/:id" element={<ProtectedRoute element={<InvoiceDetail />} requiredRole="viewer" module="invoices" />} />
           <Route path="/quotations" element={<ProtectedRoute element={<Quotations />} requiredRole="viewer" module="invoices" />} />
