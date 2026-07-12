@@ -33,7 +33,7 @@ function PrivacyPolicy() {
       <p>We have implemented appropriate technical and organizational security measures designed to protect the security of any personal information we process. However, despite our safeguards and efforts to secure your information, no electronic transmission over the Internet or information storage technology can be guaranteed to be 100% secure.</p>
 
       <h2>6. Contact Us</h2>
-      <p>If you have questions or comments about this policy, you may email us at your-email@gmail.com.</p>
+      <p>If you have questions or comments about this policy, you may email us at parthagoswamig@gmail.com.</p>
     </div>
   );
 }

@@ -33,7 +33,7 @@ function TermsAndConditions() {
       <p>We reserve the right, at our sole discretion, to modify or replace these Terms at any time. By continuing to access or use our Service after those revisions become effective, you agree to be bound by the revised terms.</p>
 
       <h2>7. Contact Us</h2>
-      <p>If you have any questions about these Terms, please contact us at your-email@gmail.com.</p>
+      <p>If you have any questions about these Terms, please contact us at parthagoswamig@gmail.com.</p>
     </div>
   );
 }
