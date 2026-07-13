@@ -157,11 +157,7 @@ function InvoiceDetail() {
         setError('Invalid payment amount');
         return;
       }
-      await recordPayment(tenantId, invoice.id, {
-        amount: amt,
-        payment_mode: payForm.payment_mode,
-        note: payForm.note,
-      });
+      await recordPayment(invoice.id, amt, payForm.payment_mode, payForm.note);
       setShowPayModal(false);
       setPayForm({ amount: '', payment_mode: 'Cash', note: '' });
       setMessage('Payment recorded successfully');
