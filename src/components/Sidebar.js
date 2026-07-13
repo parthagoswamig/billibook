@@ -26,6 +26,7 @@ const mainLinks = [
   { to: '/products', label: '📦 Products', role: 'viewer', module: 'products' },
   { to: '/inventory', label: '🏬 Inventory', role: 'viewer', module: 'products' },
   { to: '/expenses', label: '💰 Expenses', role: 'viewer', module: 'expenses' },
+  { to: '/subscription', label: '👑 Subscription', role: 'viewer' },
 ];
 
 const accountingLinks = [

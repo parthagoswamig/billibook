@@ -39,6 +39,7 @@ import AboutUs from './pages/public/AboutUs';
 import ContactUs from './pages/public/ContactUs';
 import SuperAdmin from './pages/SuperAdmin';
 import ResetPassword from './pages/ResetPassword';
+import Subscription from './pages/Subscription';
 import { useUser } from './lib/useUser';
 
 function ProtectedRoute({ element, requiredRole, module }) {
@@ -123,6 +124,7 @@ function AppShell() {
           <Route path="/settings" element={A(<Settings />)} />
           <Route path="/team" element={D(<Team />)} />
           <Route path="/security" element={D(<Security />)} />
+          <Route path="/subscription" element={<ProtectedRoute element={<Subscription />} requiredRole="viewer" />} />
           <Route path="/migration" element={<ProtectedRoute element={<DataMigration />} requiredRole="accountant" module="accounting" />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
