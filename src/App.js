@@ -38,6 +38,7 @@ import TermsAndConditions from './pages/public/TermsAndConditions';
 import AboutUs from './pages/public/AboutUs';
 import ContactUs from './pages/public/ContactUs';
 import SuperAdmin from './pages/SuperAdmin';
+import ResetPassword from './pages/ResetPassword';
 import { useUser } from './lib/useUser';
 
 function ProtectedRoute({ element, requiredRole, module }) {
@@ -191,6 +192,7 @@ function App() {
         <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
         <Route path="/about-us" element={<AboutUs />} />
         <Route path="/contact-us" element={<ContactUs />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         
         <Route path="*" element={
           session ? (
