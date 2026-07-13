@@ -31,6 +31,7 @@ import PurchaseReturns from './pages/PurchaseReturns';
 import Inventory from './pages/Inventory';
 import { Browser } from '@capacitor/browser';
 import Accounting from './pages/Accounting';
+import CashBook from './pages/CashBook';
 import { trackLogin } from './lib/visitTracker';
 import PrivacyPolicy from './pages/public/PrivacyPolicy';
 import TermsAndConditions from './pages/public/TermsAndConditions';
@@ -116,6 +117,7 @@ function AppShell() {
           <Route path="/expenses" element={<ProtectedRoute element={<Expenses />} requiredRole="viewer" module="expenses" />} />
           <Route path="/reports" element={<ProtectedRoute element={<Reports />} requiredRole="viewer" module="accounting" />} />
           <Route path="/accounting" element={<ProtectedRoute element={<Accounting />} requiredRole="accountant" module="accounting" />} />
+          <Route path="/cashbook" element={<ProtectedRoute element={<CashBook />} requiredRole="viewer" module="accounting" />} />
           <Route path="/payments" element={<ProtectedRoute element={<Payments />} requiredRole="accountant" module="accounting" />} />
           <Route path="/settings" element={A(<Settings />)} />
           <Route path="/team" element={D(<Team />)} />

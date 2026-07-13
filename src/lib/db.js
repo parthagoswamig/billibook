@@ -824,11 +824,20 @@ export async function getNextInvoiceNo(userId, type, documentKind) {
 }
 
 // ─── EXPENSES ────────────────────────────────────────────────────
-export async function getExpenses(userId) {
+export async function getExpenses(userId, page = 1, limit = 50, search = '', category = '') {
   const tenantId = await getTenantId(userId);
-  const ownerId = await getTenantOwnerId(tenantId);
-  const { data, error } = await supabase.from('expenses').select('*').eq('business_id', tenantId).order('date', { ascending: false });
-  if (error) throw error; return data;
+  let query = supabase.from('expenses').select('*', { count: 'exact' })
+    .eq('business_id', tenantId)
+    .order('date', { ascending: false });
+  if (category && category !== 'All') query = query.eq('category', category);
+  if (search) query = query.ilike('description', `%${search}%`);
+  const from = (page - 1) * limit;
+  query = query.range(from, from + limit - 1);
+  const { data, error, count } = await query;
+  if (error) throw error;
+  const result = data || [];
+  result.totalCount = count || 0;
+  return result;
 }
 export async function addExpense(userId, expense) {
   const user = await verifyWritePermission('create', 'expenses');

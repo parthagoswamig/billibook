@@ -36,7 +36,7 @@ function SuperAdmin() {
   }
 
   const formatSales = (val) => {
-    return formatCurrency(parseFloat(val || 0), 'INR'); // default currency INR (₹)
+    return formatCurrency(parseFloat(val || 0), '₹');
   };
 
   // Metric calculation

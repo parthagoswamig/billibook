@@ -26,12 +26,13 @@ function QuickScanInvoice({ products, onClose, onInvoiceCreated }) {
   const lastScannedRef = useRef('');
   const lastScannedTimeRef = useRef(0);
 
-  // Load parties on mount
+  // Load ALL parties on mount (high limit to avoid pagination cut-off)
   useEffect(() => {
     if (!tenantId) return;
-    getParties(tenantId, 'customer').then(pts => {
-      setParties(pts || []);
-      if (pts && pts.length > 0) setCustomerId(pts[0].id);
+    getParties(tenantId, 'customer', 1, 1000, '').then(pts => {
+      const list = Array.isArray(pts) ? pts : (pts?.data || pts || []);
+      setParties(list);
+      if (list.length > 0) setCustomerId(list[0].id);
     });
   }, [tenantId]);
 

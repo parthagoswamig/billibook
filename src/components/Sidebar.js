@@ -30,6 +30,7 @@ const mainLinks = [
 
 const accountingLinks = [
   { to: '/payments', label: '💳 Payments', role: 'accountant', module: 'invoices' },
+  { to: '/cashbook', label: '📒 Day Book', role: 'viewer', module: 'accounting' },
   { to: '/accounting', label: '🏦 Accounting Books', role: 'accountant', module: 'accounting' },
   { to: '/migration', label: '🔄 Migration', role: 'accountant', module: 'accounting' },
   { to: '/reports', label: '📈 Reports & GST', role: 'viewer', module: 'accounting' },

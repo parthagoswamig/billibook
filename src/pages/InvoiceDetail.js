@@ -199,9 +199,17 @@ function InvoiceDetail() {
             <button className="secondary-button" type="button" onClick={() => navigate(backRoute)}>← Back</button>
             <button className="secondary-button" type="button" onClick={() => window.print()}>🖨️ Print</button>
             <a className="secondary-button wa-btn" href={whatsappUrl} target="_blank" rel="noreferrer">💬 WhatsApp</a>
+            {canEdit() && invoice.status !== 'paid' && (
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => navigate(backRoute, { state: { openEdit: invoice.id } })}
+              >✏️ Edit</button>
+            )}
             {canConvert && canCreate() && <button className="primary-button" type="button" onClick={handleConvert}>→ Convert</button>}
             {canPay && canCreate() && <button className="primary-button" type="button" onClick={() => setShowPayModal(true)}>💳 Payment</button>}
-            {canEdit() && <button className="secondary-button" type="button" onClick={() => setEditNotes(!editNotes)}>✏️ Notes</button>}
+            {canEdit() && <button className="secondary-button" type="button" onClick={() => setEditNotes(!editNotes)}>📝 Notes</button>}
+            {canDelete() && <button className="secondary-button danger-btn" type="button" onClick={handleDelete}>🗑️ Delete</button>}
           </div>
         }
       >

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import PageSection from '../components/PageSection';
 import SimpleTable from '../components/SimpleTable';
+import Pagination from '../components/Pagination';
 import { useUser } from '../lib/useUser';
 import { getExpenses, addExpense, updateExpense, deleteExpense, bulkImportExpenses } from '../lib/db';
 import { formatCurrency, formatDate, exportToCSV, EXPENSE_CATEGORIES, importFromCSV } from '../lib/utils';
@@ -15,6 +16,10 @@ function Expenses() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('All');
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const limit = 50;
   const [form, setForm] = useState({
     category: 'Rent', description: '', amount: '', date: new Date().toISOString().split('T')[0], payment_mode: 'Cash',
   });
@@ -23,7 +28,9 @@ function Expenses() {
     if (!tenantId) return;
     setLoading(true);
     try {
-      setExpenses(await getExpenses(tenantId));
+      const data = await getExpenses(tenantId, page, limit, searchTerm, selectedCategoryFilter);
+      setExpenses(data);
+      setTotalCount(data.totalCount || 0);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -31,7 +38,10 @@ function Expenses() {
     }
   };
 
-  useEffect(() => { load(); }, [tenantId]);
+  useEffect(() => { load(); }, [tenantId, page, searchTerm, selectedCategoryFilter]);
+
+  // Reset to page 1 when filter/search changes
+  useEffect(() => { setPage(1); }, [selectedCategoryFilter, searchTerm]);
 
   const openAdd = () => {
     setEditId(null);
@@ -126,23 +136,14 @@ function Expenses() {
     }
   };
 
-  // Calculate sum per category for chips
-  const getCategoryTotal = (cat) => {
-    return expenses
-      .filter((e) => cat === 'All' || e.category === cat)
-      .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
-  };
-
-  const filteredExpenses = selectedCategoryFilter === 'All' 
-    ? expenses 
-    : expenses.filter(e => e.category === selectedCategoryFilter);
-
-  const rows = filteredExpenses.map((e) => [
+  const rows = expenses.map((e) => [
     e.category,
     formatCurrency(e.amount),
     formatDate(e.date),
     e.payment_mode || 'Cash',
   ]);
+
+  const totalPages = Math.ceil(totalCount / limit);
 
   return (
     <>
@@ -152,6 +153,7 @@ function Expenses() {
         description="Track all business spending — rent, utilities, salaries, and more."
         actions={
           <>
+            <input className="form-input search-input" placeholder="Search description..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             {canCreate() && <button className="secondary-button" type="button" onClick={handleImport}>📤 Import CSV</button>}
             <button className="secondary-button" type="button" onClick={handleExport}>📥 Export CSV</button>
             {canCreate() && <button className="primary-button" type="button" onClick={openAdd}>+ Add expense</button>}
@@ -162,45 +164,28 @@ function Expenses() {
         {error && <p className="form-message form-error">{error}</p>}
 
         {/* Horizontal Category Chips Row */}
-        <div style={{
-          display: 'flex',
-          gap: '10px',
-          overflowX: 'auto',
-          paddingBottom: '16px',
-          marginBottom: '20px',
-          whiteSpace: 'nowrap'
-        }}>
+        <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '16px', marginBottom: '20px', whiteSpace: 'nowrap' }}>
           {['All', ...EXPENSE_CATEGORIES].map((cat) => {
             const isActive = selectedCategoryFilter === cat;
-            const total = getCategoryTotal(cat);
             return (
               <button
                 key={cat}
                 type="button"
-                onClick={() => setSelectedCategoryFilter(cat)}
+                onClick={() => { setSelectedCategoryFilter(cat); setPage(1); }}
                 style={{
                   background: isActive ? 'var(--accent)' : 'white',
                   color: isActive ? 'white' : '#334155',
                   border: isActive ? '1.5px solid var(--accent)' : '1.5px solid #E2E8F0',
                   borderRadius: '20px',
                   padding: '8px 16px',
-                  display: 'flex',
-                  gap: '8px',
-                  alignItems: 'center',
                   cursor: 'pointer',
                   fontSize: '13px',
                   fontWeight: isActive ? '600' : 'normal',
-                  transition: 'all 0.12s ease'
+                  transition: 'all 0.12s ease',
+                  flexShrink: 0,
                 }}
               >
-                <span>{cat}</span>
-                <span style={{
-                  fontWeight: '700',
-                  color: isActive ? 'white' : 'var(--danger)',
-                  fontSize: '12px'
-                }}>
-                  {formatCurrency(total)}
-                </span>
+                {cat}
               </button>
             );
           })}
@@ -208,13 +193,13 @@ function Expenses() {
 
         {loading || userLoading ? (
           <div className="empty-state">Loading expenses...</div>
-        ) : filteredExpenses.length === 0 ? (
+        ) : expenses.length === 0 ? (
           <div className="empty-state">No expenses recorded yet.</div>
         ) : (
           <>
-            <SimpleTable columns={['Category', 'Amount', 'Date', 'Payment']} rows={rows} rowIds={filteredExpenses.map((e) => e.id)} />
+            <SimpleTable columns={['Category', 'Amount', 'Date', 'Payment']} rows={rows} rowIds={expenses.map((e) => e.id)} />
             <div className="table-actions-list">
-              {filteredExpenses.map((e) => (
+              {expenses.map((e) => (
                 <div key={e.id} className="table-action-row">
                   <span>{e.category} — {e.description || 'No description'}</span>
                   <div style={{ display: 'flex', gap: '8px' }}>
@@ -224,6 +209,9 @@ function Expenses() {
                 </div>
               ))}
             </div>
+            {totalPages > 1 && (
+              <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+            )}
           </>
         )}
       </PageSection>

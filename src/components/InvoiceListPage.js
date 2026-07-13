@@ -6,7 +6,7 @@ import Pagination from './Pagination';
 import { useUser } from '../lib/useUser';
 import { useBusiness } from '../lib/BusinessContext';
 import { useRole } from '../lib/RoleContext';
-import { DOCUMENT_KINDS, getInvoices, getParties, getProducts, getNextInvoiceNo, saveInvoice, getProfile, addParty, getWarehouses } from '../lib/db';
+import { DOCUMENT_KINDS, getInvoices, getParties, getProducts, getNextInvoiceNo, saveInvoice, updateInvoice, getProfile, addParty, getWarehouses } from '../lib/db';
 import { calcInvoiceTotals, formatCurrency, formatDate, exportToCSV, addDays } from '../lib/utils';
 import { supabase } from '../db';
 import QuickScanInvoice from './QuickScanInvoice';
@@ -52,6 +52,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
   const [error, setError] = useState('');
   const [warehouses, setWarehouses] = useState([]);
   const [form, setForm] = useState({
+    editId: null,
     invoiceNo: '',
     customerId: '',
     warehouseId: '',
@@ -202,6 +203,52 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
         setShowModal(true);
         setError('');
       }
+
+      // Handle Edit Invoice navigation from InvoiceDetail
+      if (location.state?.openEdit) {
+        const editInvId = location.state.openEdit;
+        navigate(location.pathname, { replace: true, state: {} });
+        try {
+          const { data: editInv, error: editErr } = await supabase
+            .from('invoices')
+            .select('*, invoice_items(*)')
+            .eq('id', editInvId)
+            .single();
+          if (!editErr && editInv) {
+            const mappedItems = (editInv.invoice_items || []).map(item => ({
+              product_id: item.product_id || '',
+              name: item.name || '',
+              hsn: item.hsn || '',
+              qty: item.qty || 1,
+              unit: item.unit || 'Pcs',
+              price: item.price || 0,
+              discount: item.discount || 0,
+              gst: item.gst || 18,
+            }));
+            setForm({
+              editId: editInv.id,
+              invoiceNo: editInv.invoice_no,
+              customerId: editInv.customer_id || '',
+              warehouseId: editInv.warehouse_id || '',
+              date: editInv.date || new Date().toISOString().split('T')[0],
+              dueDate: editInv.due_date || '',
+              notes: editInv.notes || '',
+              discount: editInv.discount || 0,
+              roundOff: editInv.round_off || 0,
+              shippingCharges: editInv.shipping_charges || 0,
+              stateOfSupply: editInv.state_of_supply || '',
+              autoRoundOff: false,
+              paid: editInv.paid || 0,
+              paymentMode: editInv.last_payment_mode || 'Cash',
+              items: mappedItems.length > 0 ? mappedItems : [{ product_id: '', name: '', hsn: '', qty: 1, unit: 'Pcs', price: '', discount: 0, gst: 18 }],
+            });
+            setShowModal(true);
+            setError('');
+          }
+        } catch (editLoadErr) {
+          console.error('Failed to load invoice for edit', editLoadErr);
+        }
+      }
     } catch (err) {
       setError(err.message || 'Failed to load');
     } finally {
@@ -348,32 +395,59 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
     }
 
     try {
-      const inv = await saveInvoice(tenantId, {
-        type: cfg.type, document_kind: documentKind, invoice_no: form.invoiceNo,
-        customer_id: form.customerId, date: form.date, due_date: form.dueDate || null,
-        subtotal: rawT.subtotal, gst_amount: rawT.gstAmount, discount: parseFloat(form.discount) || 0, round_off: rOff,
-        shipping_charges: parseFloat(form.shippingCharges) || 0,
-        state_of_supply: form.stateOfSupply || null,
-        total: finalTotal, paid: parseFloat(form.paid) || 0, balance: balanceVal, notes: form.notes,
-        status: balanceVal <= 0 ? 'paid' : parseFloat(form.paid) > 0 ? 'partial' : 'unpaid',
-        last_payment_mode: parseFloat(form.paid) > 0 ? form.paymentMode : null,
-        warehouse_id: form.warehouseId || null,
-      }, validItems.map((i) => ({
-        product_id: i.product_id || null, name: i.name, hsn: i.hsn,
-        qty: parseFloat(i.qty), price: parseFloat(i.price), gst: parseFloat(i.gst) || 0,
-        unit: i.unit || 'Pcs', discount: parseFloat(i.discount) || 0,
-        amount: (parseFloat(i.qty) * parseFloat(i.price)) * (1 - (parseFloat(i.discount) || 0) / 100),
-      })));
-      localStorage.removeItem(`invoice_draft_${documentKind}`);
-      setShowModal(false);
-      setMessage(`✓ ${inv.invoice_no} created`);
-      setTimeout(() => setMessage(''), 3000);
-      load();
-      if (shouldPrint) {
-        navigate(`${cfg.route}/${inv.id}`, { state: { autoPrint: true } });
+      if (form.editId) {
+        // UPDATE existing invoice
+        await updateInvoice(form.editId, tenantId, {
+          type: cfg.type, document_kind: documentKind, invoice_no: form.invoiceNo,
+          customer_id: form.customerId, date: form.date, due_date: form.dueDate || null,
+          subtotal: rawT.subtotal, gst_amount: rawT.gstAmount, discount: parseFloat(form.discount) || 0, round_off: rOff,
+          shipping_charges: parseFloat(form.shippingCharges) || 0,
+          state_of_supply: form.stateOfSupply || null,
+          total: finalTotal, paid: parseFloat(form.paid) || 0, balance: balanceVal, notes: form.notes,
+          status: balanceVal <= 0 ? 'paid' : parseFloat(form.paid) > 0 ? 'partial' : 'unpaid',
+          last_payment_mode: parseFloat(form.paid) > 0 ? form.paymentMode : null,
+          warehouse_id: form.warehouseId || null,
+        }, validItems.map((i) => ({
+          product_id: i.product_id || null, name: i.name, hsn: i.hsn,
+          qty: parseFloat(i.qty), price: parseFloat(i.price), gst: parseFloat(i.gst) || 0,
+          unit: i.unit || 'Pcs', discount: parseFloat(i.discount) || 0,
+          amount: (parseFloat(i.qty) * parseFloat(i.price)) * (1 - (parseFloat(i.discount) || 0) / 100),
+        })), [], documentKind);
+        localStorage.removeItem(`invoice_draft_${documentKind}`);
+        setShowModal(false);
+        setForm(f => ({ ...f, editId: null }));
+        setMessage(`✓ ${form.invoiceNo} updated`);
+        setTimeout(() => setMessage(''), 3000);
+        load();
+      } else {
+        // CREATE new invoice
+        const inv = await saveInvoice(tenantId, {
+          type: cfg.type, document_kind: documentKind, invoice_no: form.invoiceNo,
+          customer_id: form.customerId, date: form.date, due_date: form.dueDate || null,
+          subtotal: rawT.subtotal, gst_amount: rawT.gstAmount, discount: parseFloat(form.discount) || 0, round_off: rOff,
+          shipping_charges: parseFloat(form.shippingCharges) || 0,
+          state_of_supply: form.stateOfSupply || null,
+          total: finalTotal, paid: parseFloat(form.paid) || 0, balance: balanceVal, notes: form.notes,
+          status: balanceVal <= 0 ? 'paid' : parseFloat(form.paid) > 0 ? 'partial' : 'unpaid',
+          last_payment_mode: parseFloat(form.paid) > 0 ? form.paymentMode : null,
+          warehouse_id: form.warehouseId || null,
+        }, validItems.map((i) => ({
+          product_id: i.product_id || null, name: i.name, hsn: i.hsn,
+          qty: parseFloat(i.qty), price: parseFloat(i.price), gst: parseFloat(i.gst) || 0,
+          unit: i.unit || 'Pcs', discount: parseFloat(i.discount) || 0,
+          amount: (parseFloat(i.qty) * parseFloat(i.price)) * (1 - (parseFloat(i.discount) || 0) / 100),
+        })));
+        localStorage.removeItem(`invoice_draft_${documentKind}`);
+        setShowModal(false);
+        setMessage(`\u2713 ${inv.invoice_no} created`);
+        setTimeout(() => setMessage(''), 3000);
+        load();
+        if (shouldPrint) {
+          navigate(`${cfg.route}/${inv.id}`, { state: { autoPrint: true } });
+        }
       }
     } catch (err) {
-      setError(err.message || 'Failed to create');
+      setError(err.message || 'Failed to save');
     }
   };
 

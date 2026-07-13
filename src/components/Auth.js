@@ -15,6 +15,10 @@ function Auth() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -102,6 +106,21 @@ function Auth() {
     setLoading(false);
   };
 
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!forgotEmail) return;
+    setForgotLoading(true);
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setForgotLoading(false);
+    if (resetError) {
+      setError(resetError.message);
+    } else {
+      setForgotSent(true);
+    }
+  };
+
   return (
     <div className="auth-page">
       <div className="auth-container">
@@ -142,10 +161,19 @@ function Auth() {
               <input type="password" placeholder={mode === 'signup' ? 'At least 6 characters' : 'Enter password'} value={password} onChange={(e) => setPassword(e.target.value)} minLength={mode === 'signup' ? 6 : undefined} className="form-input" required />
             </label>
             {error && <div className="form-message form-error"><span className="message-icon">⚠️</span>{error}</div>}
-            {message && <div className="form-message form-success"><span className="message-icon">\u2713</span>{message}</div>}
+            {message && <div className="form-message form-success"><span className="message-icon">✓</span>{message}</div>}
             <button className="submit-button" disabled={loading} type="submit">
               {loading ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Create Account'}
             </button>
+            {mode === 'login' && (
+              <button
+                type="button"
+                onClick={() => { setForgotMode(true); setForgotEmail(email); setError(''); }}
+                style={{ background: 'none', border: 'none', color: '#6366f1', fontSize: '13px', cursor: 'pointer', marginTop: '8px', textDecoration: 'underline', fontWeight: '600' }}
+              >
+                Forgot Password?
+              </button>
+            )}
           </form>
         </div>
         <div className="auth-apk-download">
@@ -217,9 +245,44 @@ function Auth() {
           </div>
         </div>
       )}
+
+      {/* Forgot Password Modal */}
+      {forgotMode && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 24, padding: '40px 30px', maxWidth: 400, width: '100%', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
+            {forgotSent ? (
+              <>
+                <div style={{ fontSize: 56, marginBottom: 16 }}>📧</div>
+                <h2 style={{ fontSize: 22, fontWeight: 800, color: '#1E3A5F', marginBottom: 10 }}>Check Your Email</h2>
+                <p style={{ fontSize: 14, color: '#4B5563', lineHeight: 1.6, marginBottom: 24 }}>
+                  We sent a password reset link to<br/><strong>{forgotEmail}</strong>.<br/><br/>
+                  Click the link in the email to set a new password.
+                </p>
+                <button onClick={() => { setForgotMode(false); setForgotSent(false); setForgotEmail(''); }} style={{ width: '100%', background: '#1E3A5F', color: '#fff', border: 'none', borderRadius: 12, padding: '14px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>Go to Login</button>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 56, marginBottom: 16 }}>🔐</div>
+                <h2 style={{ fontSize: 22, fontWeight: 800, color: '#1E3A5F', marginBottom: 8 }}>Reset Password</h2>
+                <p style={{ fontSize: 14, color: '#4B5563', marginBottom: 20 }}>Enter your email and we'll send you a reset link.</p>
+                {error && <div className="form-message form-error" style={{ marginBottom: 12 }}>{error}</div>}
+                <form onSubmit={handleForgotPassword} style={{ display: 'grid', gap: '12px' }}>
+                  <input
+                    type="email" required placeholder="your@email.com"
+                    value={forgotEmail} onChange={e => setForgotEmail(e.target.value)}
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '2px solid #e5e7eb', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  <button type="submit" disabled={forgotLoading} style={{ background: '#6366f1', color: '#fff', border: 'none', borderRadius: 12, padding: '13px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+                    {forgotLoading ? 'Sending...' : 'Send Reset Link'}
+                  </button>
+                  <button type="button" onClick={() => { setForgotMode(false); setError(''); }} style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: 12, padding: '12px', fontSize: 14, color: '#6b7280', cursor: 'pointer', fontWeight: '600' }}>Cancel</button>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
 export default Auth;
-
