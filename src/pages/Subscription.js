@@ -4,7 +4,7 @@ import { useBusiness } from '../lib/BusinessContext';
 
 export default function Subscription() {
   const { business } = useBusiness();
-  const phone = "918617822986"; // User's phone number from previous contexts
+  const phone = "917908789954";
 
   const handleUpgrade = (plan) => {
     const text = `Hi, I want to upgrade my KhataPe account to the *${plan}* plan. Business Name: ${business?.name || 'Unknown'}`;
