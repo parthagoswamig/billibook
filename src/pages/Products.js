@@ -216,6 +216,7 @@ function Products() {
                   setShowNewCatInput(false);
                   setShowModal(true); 
                   setError(''); 
+                  setMessage('');
                 }}
               >
                 + Add product
@@ -419,6 +420,8 @@ function Products() {
                                     is_service: p.is_service ?? false, description: p.description || '',
                                     sku: p.sku || '', barcode: p.barcode || '', category_id: p.category_id || ''
                                   });
+                                  setError('');
+                                  setMessage('');
                                   setShowNewCatInput(false);
                                   setShowModal(true);
                                 }}
@@ -464,6 +467,7 @@ function Products() {
               <button className="modal-close" type="button" onClick={() => setShowModal(false)}>✕</button>
             </div>
             <form onSubmit={handleSubmit} className="modal-form">
+              {error && <p className="form-message form-error" style={{ marginBottom: '16px', gridColumn: '1 / -1' }}>{error}</p>}
               <div className="form-row">
                 <label className="form-label"><span>Product Name *</span>
                   <input className="form-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />

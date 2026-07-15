@@ -60,7 +60,13 @@ function Customers() {
 
   useEffect(() => { load(); }, [tenantId, tab, page, search]);
 
-  const openAdd = () => { setEditId(null); setForm({ name: '', email: '', phone: '', address: '', gstin: '', state: '', city: '', pan: '', opening_balance: 0, opening_balance_type: 'Dr', credit_limit: 0 }); setShowModal(true); };
+  const openAdd = () => { 
+    setEditId(null); 
+    setForm({ name: '', email: '', phone: '', address: '', gstin: '', state: '', city: '', pan: '', opening_balance: 0, opening_balance_type: 'Dr', credit_limit: 0 }); 
+    setError('');
+    setMessage('');
+    setShowModal(true); 
+  };
   const openEdit = (p) => { 
     setEditId(p.id); 
     setForm({ 
@@ -70,6 +76,8 @@ function Customers() {
       opening_balance_type: p.opening_balance_type || 'Dr',
       credit_limit: p.credit_limit || 0
     }); 
+    setError('');
+    setMessage('');
     setShowModal(true); 
   };
 
@@ -180,6 +188,7 @@ function Customers() {
               <button className="modal-close" type="button" onClick={() => setShowModal(false)}>✕</button>
             </div>
             <form onSubmit={handleSubmit} className="modal-form">
+              {error && <p className="form-message form-error" style={{ marginBottom: '16px', gridColumn: '1 / -1' }}>{error}</p>}
               <div className="form-row">
                 <label className="form-label"><span>Name *</span>
                   <input className="form-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />

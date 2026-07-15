@@ -47,6 +47,7 @@ function Expenses() {
     setEditId(null);
     setForm({ category: 'Rent', description: '', amount: '', date: new Date().toISOString().split('T')[0], payment_mode: 'Cash' });
     setError('');
+    setMessage('');
     setShowModal(true);
   };
 
@@ -54,6 +55,7 @@ function Expenses() {
     setEditId(exp.id);
     setForm({ category: exp.category, description: exp.description || '', amount: exp.amount, date: exp.date, payment_mode: exp.payment_mode || 'Cash' });
     setError('');
+    setMessage('');
     setShowModal(true);
   };
 
@@ -224,6 +226,7 @@ function Expenses() {
               <button className="modal-close" type="button" onClick={() => { setShowModal(false); setEditId(null); }}>✕</button>
             </div>
             <form onSubmit={handleSubmit} className="modal-form">
+              {error && <p className="form-message form-error" style={{ marginBottom: '16px', gridColumn: '1 / -1' }}>{error}</p>}
               <label className="form-label"><span>Category *</span>
                 <select className="form-input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
                   {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
