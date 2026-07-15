@@ -47,12 +47,12 @@ function Team() {
   const [error, setError] = useState('');
 
   const load = async () => {
-    if (!tenantId) return;
+    if (!tenantId || !userId) return;
     setLoading(true);
     try {
       const [inv, role, croles] = await Promise.all([
         getTeamInvites(tenantId),
-        getUserRole(tenantId),
+        getUserRole(userId),
         getCustomRoles(tenantId)
       ]);
       setInvites(inv || []);
@@ -69,7 +69,7 @@ function Team() {
     }
   };
 
-  useEffect(() => { load(); }, [tenantId]);
+  useEffect(() => { load(); }, [tenantId, userId]);
 
   const initializePermissions = (roleObj) => {
     const permissions = {
