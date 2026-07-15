@@ -1202,7 +1202,7 @@ export async function getRecurringInvoices(userId) {
     .select(`
       *,
       customers!inner(name),
-      base_invoice!inner(invoice_no, subtotal, gst_amount, discount, total)
+      base_invoice:invoices!inner(invoice_no, subtotal, gst_amount, discount, total)
     `)
     .eq('business_id', tenantId)
     .eq('status', 'active')
