@@ -160,6 +160,10 @@ export function RoleProvider({ children }) {
       return !!perms.read;
     }
     if (userRole === 'accountant') {
+      if (action === 'delete') return false;
+      if (resolvedModule === 'products' || resolvedModule === 'customers') {
+        return action === 'view' || action === 'read';
+      }
       return resolvedModule !== 'security' && resolvedModule !== 'team_invites' && resolvedModule !== 'user_roles';
     }
     return action === 'view' || action === 'read';
@@ -173,6 +177,12 @@ export function RoleProvider({ children }) {
       return action === 'read' || action === 'view';
     }
     if (userRole === 'accountant') {
+      if (action === 'delete') {
+        return false;
+      }
+      if (entity === 'products' || entity === 'customers') {
+        return action === 'read' || action === 'view';
+      }
       if (entity === 'users' || entity === 'user_roles' || entity === 'team_invites' || entity === 'security') {
         return action === 'read' || action === 'view';
       }
@@ -203,17 +213,17 @@ export function RoleProvider({ children }) {
       canCreate: (module) => {
         if (module) return hasModulePermission(module, 'write');
         if (userRole === 'custom') return hasModulePermission(inferModuleFromPath(), 'write');
-        return hasPermission('accountant');
+        return userRole === 'admin' || userRole === 'accountant';
       },
       canEdit: (module) => {
         if (module) return hasModulePermission(module, 'write');
         if (userRole === 'custom') return hasModulePermission(inferModuleFromPath(), 'write');
-        return hasPermission('accountant');
+        return userRole === 'admin' || userRole === 'accountant';
       },
       canDelete: (module) => {
         if (module) return hasModulePermission(module, 'delete');
         if (userRole === 'custom') return hasModulePermission(inferModuleFromPath(), 'delete');
-        return hasPermission('accountant');
+        return userRole === 'admin';
       },
       canViewReports: () => userRole === 'admin' || userRole === 'accountant' || userRole === 'viewer' || (userRole === 'custom' && !!customPermissions['accounting']?.read),
       canManageUsers: () => hasPermission('admin'),
