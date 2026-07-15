@@ -19,6 +19,7 @@ function Auth() {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
+  const [isInvited, setIsInvited] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -26,6 +27,7 @@ function Auth() {
     const modeParam = params.get('mode');
     if (emailParam) {
       setEmail(emailParam);
+      setIsInvited(true);
     }
     if (modeParam && ['login', 'signup'].includes(modeParam)) {
       setMode(modeParam);
@@ -50,7 +52,7 @@ function Auth() {
       return;
     }
 
-    if (mode === 'signup' && !businessName.trim()) {
+    if (mode === 'signup' && !isInvited && !businessName.trim()) {
       setError('Please enter your business name');
       setLoading(false);
       return;
@@ -67,30 +69,41 @@ function Auth() {
         const { data, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
         if (loginError) setError(loginError.message);
         else if (data.user) {
-          // If first login after signup, they need the admin role
-          await ensureUserRole(data.user.id, 'admin');
-          await applyTeamInvite(data.user.id, email);
-          
-          // Ensure business profile exists (using metadata from signup)
-          const meta = data.user.user_metadata || {};
-          const bName = meta.business_name || '';
-          const bPhone = meta.phone || '';
-          
-          const { data: existingProfile } = await supabase
-            .from('business_profile')
-            .select('id, phone')
-            .eq('user_id', data.user.id)
+          // Check if there is an invite for this user
+          const { data: invite } = await supabase
+            .from('team_invites')
+            .select('id')
+            .eq('email', email.toLowerCase().trim())
             .maybeSingle();
 
-          if (!existingProfile) {
-            await supabase.from('business_profile').insert([{
-              user_id: data.user.id,
-              business_name: bName || null,
-              email: data.user.email,
-              phone: bPhone || null,
-            }]);
-          } else if (!existingProfile.phone && bPhone) {
-            await supabase.from('business_profile').update({ phone: bPhone }).eq('id', existingProfile.id);
+          // If first login after signup, they need the admin role (only if not invited)
+          if (!invite) {
+            await ensureUserRole(data.user.id, 'admin');
+          }
+          await applyTeamInvite(data.user.id, email);
+          
+          // Ensure business profile exists (only if not invited)
+          if (!invite) {
+            const meta = data.user.user_metadata || {};
+            const bName = meta.business_name || '';
+            const bPhone = meta.phone || '';
+            
+            const { data: existingProfile } = await supabase
+              .from('business_profile')
+              .select('id, phone')
+              .eq('user_id', data.user.id)
+              .maybeSingle();
+
+            if (!existingProfile) {
+              await supabase.from('business_profile').insert([{
+                user_id: data.user.id,
+                business_name: bName || 'My Business',
+                email: data.user.email,
+                phone: bPhone || null,
+              }]);
+            } else if (!existingProfile.phone && bPhone) {
+              await supabase.from('business_profile').update({ phone: bPhone }).eq('id', existingProfile.id);
+            }
           }
 
           toast.success('Login Successful!', { 
@@ -103,7 +116,7 @@ function Auth() {
         const { error: signupError } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { business_name: businessName.trim(), phone: phone.trim() } },
+          options: { data: { business_name: isInvited ? '' : businessName.trim(), phone: phone.trim() } },
         });
         if (signupError) setError(signupError.message);
         else {
@@ -158,9 +171,11 @@ function Auth() {
           <form className="auth-form" onSubmit={handleSubmit}>
             {mode === 'signup' && (
               <>
-                <label className="form-label"><span>Business Name</span>
-                  <input type="text" placeholder="Your business name" value={businessName} onChange={(e) => setBusinessName(e.target.value)} className="form-input" />
-                </label>
+                {!isInvited && (
+                  <label className="form-label"><span>Business Name</span>
+                    <input type="text" placeholder="Your business name" value={businessName} onChange={(e) => setBusinessName(e.target.value)} className="form-input" />
+                  </label>
+                )}
                 <label className="form-label"><span>Mobile Number</span>
                   <input type="tel" placeholder="e.g. 9876543210" value={phone} onChange={(e) => setPhone(e.target.value)} className="form-input" />
                 </label>
