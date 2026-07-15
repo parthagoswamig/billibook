@@ -174,6 +174,13 @@ function Team() {
     }
   };
 
+  const handleCopyLink = (email) => {
+    const inviteLink = `${window.location.origin}/?mode=signup&email=${encodeURIComponent(email)}`;
+    navigator.clipboard.writeText(inviteLink);
+    setMessage(`✓ Invite link copied for ${email}!`);
+    setTimeout(() => setMessage(''), 3000);
+  };
+
   return (
     <>
       <div className="team-container" style={{ padding: '0 24px' }}>
@@ -235,7 +242,17 @@ function Team() {
                         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                           <span className={`status-badge status-${inv.status}`} style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '12px', background: inv.status === 'accepted' ? '#D1FAE5' : '#FEF3C7', color: inv.status === 'accepted' ? '#065F46' : '#92400E' }}>{inv.status}</span>
                           {inv.status === 'pending' && userRole === 'admin' && (
-                            <button className="secondary-button" style={{ background: '#FEE2E2', color: '#991B1B', border: 'none', padding: '6px 12px', fontSize: '12px' }} type="button" onClick={async () => { await deleteTeamInvite(inv.id); load(); }}>Revoke</button>
+                            <>
+                              <button 
+                                className="secondary-button" 
+                                style={{ background: '#E0F2FE', color: '#0369A1', border: 'none', padding: '6px 12px', fontSize: '12px', cursor: 'pointer' }} 
+                                type="button" 
+                                onClick={() => handleCopyLink(inv.email)}
+                              >
+                                🔗 Copy Link
+                              </button>
+                              <button className="secondary-button" style={{ background: '#FEE2E2', color: '#991B1B', border: 'none', padding: '6px 12px', fontSize: '12px' }} type="button" onClick={async () => { await deleteTeamInvite(inv.id); load(); }}>Revoke</button>
+                            </>
                           )}
                         </div>
                       </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase, supabaseConfigError } from '../db';
 import { ensureUserRole, applyTeamInvite, saveProfile } from '../lib/db';
 import { toast } from 'react-hot-toast';
@@ -19,6 +19,18 @@ function Auth() {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const emailParam = params.get('email');
+    const modeParam = params.get('mode');
+    if (emailParam) {
+      setEmail(emailParam);
+    }
+    if (modeParam && ['login', 'signup'].includes(modeParam)) {
+      setMode(modeParam);
+    }
+  }, []);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
