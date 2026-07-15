@@ -1,6 +1,15 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useUser } from './useUser';
-import { getUserRole, ensureUserRole, getTenantId, getCustomPermissionsForUser, getAccessibleBusinesses, acceptBusinessInvite, getActiveRole } from './db';
+import { 
+  getUserRole, 
+  ensureUserRole, 
+  getTenantId, 
+  getCustomPermissionsForUser, 
+  getAccessibleBusinesses, 
+  acceptBusinessInvite, 
+  getActiveRole,
+  applyTeamInvite
+} from './db';
 
 const RoleContext = createContext();
 
@@ -11,7 +20,7 @@ export const useRole = () => {
 };
 
 export function RoleProvider({ children }) {
-  const { userId, loading: userLoading } = useUser();
+  const { user, userId, loading: userLoading } = useUser();
   const [userRole, setUserRole] = useState('viewer');
   const [tenantId, setTenantId] = useState(null);
   const [customPermissions, setCustomPermissions] = useState({});
@@ -67,11 +76,29 @@ export function RoleProvider({ children }) {
       }
       try {
         setLoading(true);
+        if (user && user.email) {
+          await applyTeamInvite(userId, user.email);
+        }
         await ensureUserRole(userId, 'viewer');
-        const tId = await getTenantId(userId);
-        setTenantId(tId);
         
-        const role = await getActiveRole(userId, tId);
+        const list = await getAccessibleBusinesses();
+        setAccessibleBusinesses(list);
+
+        let activeTId = localStorage.getItem('khatape_active_tenant_id');
+        if (!activeTId || activeTId === userId) {
+          const invited = list.find(b => !b.is_owner);
+          if (invited) {
+            activeTId = invited.tenant_id;
+            localStorage.setItem('khatape_active_tenant_id', activeTId);
+          }
+        }
+        
+        if (!activeTId) {
+          activeTId = await getTenantId(userId);
+        }
+        setTenantId(activeTId);
+        
+        const role = await getActiveRole(userId, activeTId);
         setUserRole(role);
         
         setCustomPermissions({});
@@ -89,9 +116,6 @@ export function RoleProvider({ children }) {
           }
           setCustomPermissions(permMap);
         }
-        
-        const list = await getAccessibleBusinesses();
-        setAccessibleBusinesses(list);
       } catch (err) {
         console.error('Error fetching user role, defaulting to viewer:', err);
         setUserRole('viewer');
