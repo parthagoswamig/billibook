@@ -11,7 +11,7 @@ export const useRole = () => {
 };
 
 export function RoleProvider({ children }) {
-  const { userId } = useUser();
+  const { userId, loading: userLoading } = useUser();
   const [userRole, setUserRole] = useState('viewer');
   const [tenantId, setTenantId] = useState(null);
   const [customPermissions, setCustomPermissions] = useState({});
@@ -60,6 +60,7 @@ export function RoleProvider({ children }) {
 
   useEffect(() => {
     const fetchRoleAndBusinesses = async () => {
+      if (userLoading) return;
       if (!userId) {
         setLoading(false);
         return;
@@ -100,7 +101,7 @@ export function RoleProvider({ children }) {
       }
     };
     fetchRoleAndBusinesses();
-  }, [userId, businessRefreshTrigger]);
+  }, [userId, userLoading, businessRefreshTrigger]);
 
   const switchBusiness = (newTenantId) => {
     localStorage.setItem('khatape_active_tenant_id', newTenantId);
