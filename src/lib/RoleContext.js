@@ -86,7 +86,9 @@ export function RoleProvider({ children }) {
         setAccessibleBusinesses(list);
 
         let activeTId = localStorage.getItem('khatape_active_tenant_id');
-        if (!activeTId || activeTId === userId) {
+        const hasSwitched = localStorage.getItem('khatape_has_switched') === 'true';
+
+        if (!hasSwitched) {
           const invited = list.find(b => !b.is_owner);
           if (invited) {
             activeTId = invited.tenant_id;
@@ -135,6 +137,7 @@ export function RoleProvider({ children }) {
 
   const switchBusiness = (newTenantId) => {
     localStorage.setItem('khatape_active_tenant_id', newTenantId);
+    localStorage.setItem('khatape_has_switched', 'true');
     setBusinessRefreshTrigger(prev => prev + 1);
   };
 
