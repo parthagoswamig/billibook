@@ -2950,11 +2950,10 @@ export async function createManualJournalEntry(userId, entry, items) {
 // ─── TEAM CUSTOM ROLES & PERMISSIONS MATRIX ──────────────────────
 export async function getCustomRoles(userId) {
   const tenantId = await getTenantId(userId);
-  const ownerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase
     .from('custom_roles')
     .select('*, custom_permissions(*)')
-    .eq('business_id', tenantId);
+    .eq('user_id', tenantId);
   if (error) throw error;
   return data || [];
 }
@@ -2962,19 +2961,18 @@ export async function getCustomRoles(userId) {
 export async function createCustomRole(userId, name, modulePermissions) {
   const user = await verifyWritePermission('create', 'custom_roles');
   const tenantId = await getTenantId(userId);
-  const ownerId = await getTenantOwnerId(tenantId);
 
   // 1. Create the role
   const { data: role, error: roleErr } = await supabase
     .from('custom_roles')
-    .insert([{ business_id: tenantId, user_id: ownerId, name }])
+    .insert([{ user_id: tenantId, name }])
     .select()
     .single();
   if (roleErr) throw roleErr;
 
   // 2. Create the permissions rows
   const permissionRows = Object.entries(modulePermissions).map(([mod, perms]) => ({
-    business_id: tenantId, user_id: ownerId,
+    user_id: tenantId,
     role_id: role.id,
     module_name: mod,
     can_read: !!perms.can_read,
@@ -3018,13 +3016,12 @@ export async function deleteCustomRole(id) {
 export async function updateCustomRolePermissions(roleId, userId, modulePermissions) {
   const user = await verifyWritePermission('update', 'custom_roles', roleId);
   const tenantId = await getTenantId(userId);
-  const ownerId = await getTenantOwnerId(tenantId);
 
   for (const [mod, perms] of Object.entries(modulePermissions)) {
     await supabase
       .from('custom_permissions')
       .upsert({
-        business_id: tenantId, user_id: ownerId,
+        user_id: tenantId,
         role_id: roleId,
         module_name: mod,
         can_read: !!perms.can_read,
