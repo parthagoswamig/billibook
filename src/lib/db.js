@@ -1918,8 +1918,7 @@ export async function getCustomPermissionsForUser(userId) {
 
 export async function getTeamInvites(userId) {
   const tenantId = await getTenantId(userId);
-  const ownerId = await getTenantOwnerId(tenantId);
-  const { data, error } = await supabase.from('team_invites').select('*').eq('owner_id', tenantId).order('created_at', { ascending: false });
+  const { data, error } = await supabase.from('team_invites').select('*').eq('business_id', tenantId).order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];
 }
@@ -1929,7 +1928,11 @@ export async function inviteTeamMember(userId, email, role) {
   const tenantId = await getTenantId(userId);
   const resolvedOwnerId = await getTenantOwnerId(tenantId);
   const { data, error } = await supabase.from('team_invites').upsert([{
-    owner_id: tenantId, email: email.toLowerCase().trim(), role, status: 'pending',
+    owner_id: resolvedOwnerId,
+    business_id: tenantId,
+    email: email.toLowerCase().trim(),
+    role,
+    status: 'pending',
   }], { onConflict: 'owner_id,email' }).select().single();
   if (error) throw error;
   await supabase.from('audit_logs').insert([{
