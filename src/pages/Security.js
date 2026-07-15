@@ -6,8 +6,6 @@ import './Security.css';
 function Security() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
 
   useEffect(() => {
     async function loadLogs() {
@@ -28,23 +26,6 @@ function Security() {
     ['user_create', 'role_create', 'role_change', 'role_delete', 'role_update'].includes(l.action) ||
     (l.entity_type === 'team_invites')
   );
-
-  // Pagination
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentLogs = logs.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(logs.length / itemsPerPage);
-
-  const getActionBadgeClass = (action) => {
-    switch (action) {
-      case 'failed_access': return 'badge-danger';
-      case 'user_create':
-      case 'role_create': return 'badge-success';
-      case 'delete':
-      case 'role_delete': return 'badge-warning';
-      default: return 'badge-info';
-    }
-  };
 
   return (
     <PageSection
@@ -121,64 +102,6 @@ function Security() {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* Audit Stream Table */}
-          <div className="security-table-panel">
-            <h3>Complete Audit Logs</h3>
-            <table className="security-table">
-              <thead>
-                <tr>
-                  <th>Timestamp</th>
-                  <th>Action</th>
-                  <th>Entity</th>
-                  <th>User ID</th>
-                  <th>Details</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentLogs.map(log => (
-                  <tr key={log.id}>
-                    <td>{new Date(log.created_at).toLocaleString('en-IN')}</td>
-                    <td>
-                      <span className={`badge ${getActionBadgeClass(log.action)}`}>
-                        {log.action}
-                      </span>
-                    </td>
-                    <td>{log.entity_type || '—'}</td>
-                    <td className="log-uuid" title={log.user_id}>{log.user_id ? log.user_id.substring(0, 8) + '...' : 'System'}</td>
-                    <td>
-                      <pre className="log-details-pre">
-                        {log.details ? JSON.stringify(log.details) : '—'}
-                      </pre>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="security-pagination">
-                <button 
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  className="pagination-btn"
-                >
-                  ◀ Previous
-                </button>
-                <span className="pagination-info">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button 
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  className="pagination-btn"
-                >
-                  Next ▶
-                </button>
               </div>
             )}
           </div>
