@@ -176,7 +176,7 @@ function Dashboard() {
               <BarChart data={salesData} margin={{ top: 20, right: 20, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.1)" />
                 <XAxis dataKey="month" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)', fontSize: 12}} axisLine={false} tickLine={false} />
-                <YAxis stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)', fontSize: 12}} tickFormatter={(value) => `${currency === 'USD' ? '$' : '₹'}${value >= 1000 ? (value/1000).toFixed(1)+'k' : value}`} axisLine={false} tickLine={false} />
+                <YAxis stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)', fontSize: 12}} tickFormatter={(value) => `${currency}${value >= 1000 ? (value/1000).toFixed(1)+'k' : value}`} axisLine={false} tickLine={false} />
                 <Tooltip 
                   cursor={{fill: 'rgba(255,255,255,0.05)'}}
                   contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-color)' }}

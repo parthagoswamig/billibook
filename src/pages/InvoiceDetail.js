@@ -281,7 +281,7 @@ function InvoiceDetail() {
                     <th style={{ width: '70px', textAlign: 'right' }}>Qty</th>
                     <th style={{ width: '100px', textAlign: 'right' }}>Rate/Unit</th>
                     <th style={{ width: '80px', textAlign: 'right' }}>Discount</th>
-                    <th style={{ width: '80px', textAlign: 'right' }}>GST %</th>
+                    <th style={{ width: '80px', textAlign: 'right' }}>{profile?.tax_label || 'GST'} %</th>
                     <th style={{ width: '120px', textAlign: 'right' }}>Amount</th>
                   </tr>
                 </thead>
@@ -343,13 +343,24 @@ function InvoiceDetail() {
                   <div className="summary-row"><span>Subtotal:</span><span>{fmt(invoice.subtotal)}</span></div>
                   {parseFloat(invoice.shipping_charges) > 0 && <div className="summary-row"><span>Shipping:</span><span>{fmt(invoice.shipping_charges)}</span></div>}
                   {parseFloat(invoice.discount) > 0 && <div className="summary-row"><span>Discount:</span><span>-{fmt(invoice.discount)}</span></div>}
-                  {gstSplit.cgst > 0 && (
+                  {(profile?.tax_label && profile.tax_label !== 'GST') ? (
+                    parseFloat(invoice.gst_amount) > 0 && (
+                      <div className="summary-row">
+                        <span>{profile.tax_label}:</span>
+                        <span>{fmt(invoice.gst_amount)}</span>
+                      </div>
+                    )
+                  ) : (
                     <>
-                      <div className="summary-row"><span>CGST:</span><span>{fmt(gstSplit.cgst)}</span></div>
-                      <div className="summary-row"><span>SGST:</span><span>{fmt(gstSplit.sgst)}</span></div>
+                      {gstSplit.cgst > 0 && (
+                        <>
+                          <div className="summary-row"><span>CGST:</span><span>{fmt(gstSplit.cgst)}</span></div>
+                          <div className="summary-row"><span>SGST:</span><span>{fmt(gstSplit.sgst)}</span></div>
+                        </>
+                      )}
+                      {gstSplit.igst > 0 && <div className="summary-row"><span>IGST:</span><span>{fmt(gstSplit.igst)}</span></div>}
                     </>
                   )}
-                  {gstSplit.igst > 0 && <div className="summary-row"><span>IGST:</span><span>{fmt(gstSplit.igst)}</span></div>}
                   {parseFloat(invoice.round_off) !== 0 && <div className="summary-row"><span>Round Off:</span><span>{fmt(invoice.round_off)}</span></div>}
                   
                   <div className="summary-row grand-total-row">

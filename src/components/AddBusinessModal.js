@@ -31,6 +31,8 @@ const modalStyle = {
 
 export default function AddBusinessModal({ isOpen, onClose }) {
   const [businessName, setBusinessName] = useState('');
+  const [currencySymbol, setCurrencySymbol] = useState('₹');
+  const [taxLabel, setTaxLabel] = useState('GST');
   const [loading, setLoading] = useState(false);
   const { user } = useUser();
   const { refreshBusinesses } = useRole();
@@ -41,7 +43,11 @@ export default function AddBusinessModal({ isOpen, onClose }) {
     if (!businessName.trim()) return;
     setLoading(true);
     try {
-      await saveProfile(user?.id, { business_name: businessName }, true);
+      await saveProfile(user?.id, { 
+        business_name: businessName,
+        currency_symbol: currencySymbol,
+        tax_label: taxLabel
+      }, true);
       refreshBusinesses();
       onClose();
       window.location.reload();
@@ -85,6 +91,59 @@ export default function AddBusinessModal({ isOpen, onClose }) {
               outline: 'none' 
             }}
           />
+        </div>
+
+        <div style={{ display: 'flex', gap: '16px', marginBottom: '20px' }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px' }}>Currency</label>
+            <select
+              value={currencySymbol}
+              onChange={(e) => setCurrencySymbol(e.target.value)}
+              style={{
+                background: '#1e293b',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '8px',
+                padding: '12px',
+                color: '#fff',
+                fontSize: '14px',
+                width: '100%',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="₹">₹ (INR - India)</option>
+              <option value="$">$ (USD - US Dollar)</option>
+              <option value="€">€ (EUR - Euro)</option>
+              <option value="£">£ (GBP - UK Pound)</option>
+              <option value="৳">৳ (BDT - Bangladesh Taka)</option>
+              <option value="AED">AED (UAE Dirham)</option>
+            </select>
+          </div>
+
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px' }}>Tax Type</label>
+            <select
+              value={taxLabel}
+              onChange={(e) => setTaxLabel(e.target.value)}
+              style={{
+                background: '#1e293b',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '8px',
+                padding: '12px',
+                color: '#fff',
+                fontSize: '14px',
+                width: '100%',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="GST">GST</option>
+              <option value="VAT">VAT</option>
+              <option value="Sales Tax">Sales Tax</option>
+              <option value="Tax">General Tax</option>
+              <option value="None">No Tax</option>
+            </select>
+          </div>
         </div>
 
         <button 

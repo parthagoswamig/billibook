@@ -1,6 +1,7 @@
 export const formatCurrency = (amount, currencySymbol = '₹') => {
   const value = parseFloat(amount) || 0;
-  return `${currencySymbol} ${value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const locale = currencySymbol === '₹' ? 'en-IN' : 'en-US';
+  return `${currencySymbol} ${value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
 export const getInvoiceStatus = (invoice) => {

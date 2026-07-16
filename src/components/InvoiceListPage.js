@@ -476,7 +476,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
       <PageSection
         eyebrow={cfg.type === 'purchase' ? 'Purchases' : 'Sales'}
         title={cfg.label}
-        description={`Manage ${cfg.label.toLowerCase()} — GST line items, stock & export.`}
+        description={`Manage ${cfg.label.toLowerCase()} — ${profile?.tax_label || 'GST'} line items, stock & export.`}
         actions={
           <>
             <input className="form-input search-input" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
@@ -682,7 +682,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
                         <th style={{ width: '9%' }}>Unit</th>
                         <th style={{ width: '10%' }}>Price/Unit</th>
                         <th style={{ width: '8%' }}>Disc %</th>
-                        <th style={{ width: '8%' }}>GST %</th>
+                        <th style={{ width: '8%' }}>{profile?.tax_label || 'GST'} %</th>
                         <th style={{ width: '11%' }}>Taxable</th>
                         <th style={{ width: '11%' }}>Total</th>
                         <th style={{ width: '2%' }}></th>
@@ -945,27 +945,34 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
                       <span>{fmt(totals.subtotal)}</span>
                     </div>
 
-                    {/* Show GST Breakdown */}
+                    {/* Show Tax Breakdown */}
                     {totals.gstAmount > 0 && (
-                      <>
-                        {form.stateOfSupply && profile?.state && form.stateOfSupply !== profile.state ? (
-                          <div className="totals-row">
-                            <span>IGST (Inter-state Tax):</span>
-                            <span>{fmt(totals.gstAmount)}</span>
-                          </div>
-                        ) : (
-                          <>
+                      (profile?.tax_label && profile.tax_label !== 'GST') ? (
+                        <div className="totals-row">
+                          <span>{profile.tax_label}:</span>
+                          <span>{fmt(totals.gstAmount)}</span>
+                        </div>
+                      ) : (
+                        <>
+                          {form.stateOfSupply && profile?.state && form.stateOfSupply !== profile.state ? (
                             <div className="totals-row">
-                              <span>CGST (Central Tax):</span>
-                              <span>{fmt(totals.gstAmount / 2)}</span>
+                              <span>IGST (Inter-state Tax):</span>
+                              <span>{fmt(totals.gstAmount)}</span>
                             </div>
-                            <div className="totals-row">
-                              <span>SGST (State Tax):</span>
-                              <span>{fmt(totals.gstAmount / 2)}</span>
-                            </div>
-                          </>
-                        )}
-                      </>
+                          ) : (
+                            <>
+                              <div className="totals-row">
+                                <span>CGST (Central Tax):</span>
+                                <span>{fmt(totals.gstAmount / 2)}</span>
+                              </div>
+                              <div className="totals-row">
+                                <span>SGST (State Tax):</span>
+                                <span>{fmt(totals.gstAmount / 2)}</span>
+                              </div>
+                            </>
+                          )}
+                        </>
+                      )
                     )}
 
                     <div className="totals-row">
@@ -1068,11 +1075,11 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
                 />
               </label>
               <label className="form-label">
-                <span>GSTIN</span>
+                <span>{profile?.tax_label === 'GST' ? 'GSTIN' : 'Tax ID / VAT Registration'}</span>
                 <input 
                   type="text" 
                   className="form-input" 
-                  placeholder="15-digit GSTIN" 
+                  placeholder={profile?.tax_label === 'GST' ? '15-digit GSTIN' : 'Tax ID number'} 
                   value={newCustomer.gstin} 
                   onChange={(e) => setNewCustomer({ ...newCustomer, gstin: e.target.value })} 
                 />

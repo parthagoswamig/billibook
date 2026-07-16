@@ -23,7 +23,7 @@ function Settings() {
   const [form, setForm] = useState({
     business_name: '', owner_name: '', phone: '', email: '', address: '',
     gstin: '', state: '', logo_url: '', bank_name: '', account_no: '',
-    ifsc: '', upi_id: '', invoice_prefix: 'INV', default_due_days: 7, currency_symbol: '₹', terms: '',
+    ifsc: '', upi_id: '', invoice_prefix: 'INV', default_due_days: 7, currency_symbol: '₹', tax_label: 'GST', terms: '',
   });
 
   useEffect(() => {
@@ -46,6 +46,7 @@ function Settings() {
           invoice_prefix: profile.invoice_prefix || 'INV',
           default_due_days: profile.default_due_days ?? 7,
           currency_symbol: profile.currency_symbol || '₹',
+          tax_label: profile.tax_label || 'GST',
           terms: profile.terms || '',
         });
       }
@@ -185,7 +186,23 @@ function Settings() {
             <input type="text" value={form.logo_url} onChange={(e) => update('logo_url', e.target.value)} placeholder="https://..." />
           </label>
           <label>Currency symbol
-            <input type="text" value={form.currency_symbol} onChange={(e) => update('currency_symbol', e.target.value)} />
+            <select value={form.currency_symbol} onChange={(e) => update('currency_symbol', e.target.value)} style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#fff', fontSize: '14px', width: '100%' }}>
+              <option value="₹">₹ (INR - India)</option>
+              <option value="$">$ (USD - US Dollar)</option>
+              <option value="€">€ (EUR - Euro)</option>
+              <option value="£">£ (GBP - UK Pound)</option>
+              <option value="৳">৳ (BDT - Bangladesh Taka)</option>
+              <option value="AED">AED (UAE Dirham)</option>
+            </select>
+          </label>
+          <label>Tax Type
+            <select value={form.tax_label} onChange={(e) => update('tax_label', e.target.value)} style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#fff', fontSize: '14px', width: '100%' }}>
+              <option value="GST">GST</option>
+              <option value="VAT">VAT</option>
+              <option value="Sales Tax">Sales Tax</option>
+              <option value="Tax">General Tax</option>
+              <option value="None">No Tax</option>
+            </select>
           </label>
           <label>Default due days
             <input type="number" min="0" value={form.default_due_days} onChange={(e) => update('default_due_days', e.target.value)} />

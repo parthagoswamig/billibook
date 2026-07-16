@@ -6,8 +6,10 @@ import { useUser } from '../lib/useUser';
 import { getExpenses, addExpense, updateExpense, deleteExpense, bulkImportExpenses } from '../lib/db';
 import { formatCurrency, formatDate, exportToCSV, EXPENSE_CATEGORIES, importFromCSV } from '../lib/utils';
 import { useRole } from '../lib/RoleContext';
+import { useBusiness } from '../lib/BusinessContext';
 function Expenses() {
   const { userId, loading: userLoading } = useUser();
+  const { currency } = useBusiness();
   const { canCreate, canDelete, tenantId } = useRole();
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -140,7 +142,7 @@ function Expenses() {
 
   const rows = expenses.map((e) => [
     e.category,
-    formatCurrency(e.amount),
+    formatCurrency(e.amount, currency),
     formatDate(e.date),
     e.payment_mode || 'Cash',
   ]);
