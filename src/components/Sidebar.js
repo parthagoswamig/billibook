@@ -173,10 +173,10 @@ function Sidebar({ onClose }) {
                       type="button"
                       onClick={async (e) => {
                         e.stopPropagation();
-                        if (!window.confirm(`"${b.business_name}" ডিলিট করবেন? এই কাজটি ফিরিয়ে আনা যাবে না।`)) return;
+                        if (!window.confirm(`Delete "${b.business_name}"? This will permanently delete all data (invoices, customers, products). This action cannot be undone.`)) return;
                         try {
                           await deleteBusiness(b.tenant_id);
-                          toast.success(`"${b.business_name}" ডিলিট হয়েছে!`);
+                          toast.success(`"${b.business_name}" has been deleted!`);
                           window.location.reload();
                         } catch (err) {
                           toast.error(err.message);
