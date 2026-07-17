@@ -320,24 +320,40 @@ export async function redeemAppSumoCode(userId, code) {
     
   if (updateCodeError) throw updateCodeError;
   
-  // 3. Update business_profile plan column to 'premium'
+  // 3. Get current profile to handle code stacking
+  const { data: currentProfile } = await supabase
+    .from('business_profile')
+    .select('plan, appsumo_code, appsumo_stacking')
+    .eq('id', tenantId)
+    .maybeSingle();
+
+  const isAlreadyAppSumo = !!currentProfile?.appsumo_code;
+  const newStackCount = isAlreadyAppSumo
+    ? (currentProfile.appsumo_stacking || 1) + 1
+    : 1;
+
+  // 4. Update business_profile: plan, appsumo_code, appsumo_stacking
   const { data: updatedProfile, error: profileError } = await supabase
     .from('business_profile')
-    .update({ plan: 'premium' })
+    .update({ 
+      plan: 'premium',
+      appsumo_code: codeData.code,    // last redeemed code
+      appsumo_stacking: newStackCount // total codes stacked
+    })
     .eq('id', tenantId)
     .select()
     .single();
     
   if (profileError) throw profileError;
   
-  // 4. Log audit log
+  // 5. Log audit log
   await supabase.from('audit_logs').insert([{
     user_id: user.id,
     business_id: tenantId,
     action: 'redeem_code',
     entity_type: 'business_profile',
     entity_id: tenantId,
-    details: { code: codeData.code, plan: 'premium' }
+    details: { code: codeData.code, plan: 'premium', stacking: newStackCount }
   }]);
   
   invalidateDashboardCache(tenantId);
@@ -2002,6 +2018,33 @@ export async function inviteTeamMember(userId, email, role) {
   const user = await verifyWritePermission('create', 'team_invites');
   const tenantId = await getTenantId(userId);
   const resolvedOwnerId = await getTenantOwnerId(tenantId);
+
+  // ── AppSumo 5-seat limit enforcement ──
+  const { data: bizProfile } = await supabase
+    .from('business_profile')
+    .select('plan, appsumo_code, appsumo_stacking')
+    .eq('id', tenantId)
+    .maybeSingle();
+
+  if (bizProfile?.appsumo_code) {
+    // Count of codes stacked (default 1 if not tracked)
+    const codesStacked = bizProfile.appsumo_stacking || 1;
+    const seatLimit = codesStacked * 5;
+
+    const { count } = await supabase
+      .from('team_invites')
+      .select('*', { count: 'exact', head: true })
+      .eq('business_id', tenantId)
+      .in('status', ['pending', 'accepted']);
+
+    if ((count || 0) >= seatLimit) {
+      throw new Error(
+        `Seat limit reached. Your plan includes ${seatLimit} team seat${seatLimit > 1 ? 's' : ''} (${codesStacked} AppSumo code${codesStacked > 1 ? 's' : ''}). Stack another code to add more seats.`
+      );
+    }
+  }
+  // ─────────────────────────────────────
+
   const { data, error } = await supabase.from('team_invites').upsert([{
     owner_id: resolvedOwnerId,
     business_id: tenantId,
