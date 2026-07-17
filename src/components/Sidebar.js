@@ -4,6 +4,8 @@ import { supabase } from '../db';
 import { useRole } from '../lib/RoleContext';
 import { useUser } from '../lib/useUser';
 import AddBusinessModal from './AddBusinessModal';
+import { deleteBusiness } from '../lib/db';
+import toast from 'react-hot-toast';
 
 const salesLinks = [
   { to: '/invoices', label: '📄 Sales Invoice', role: 'viewer', module: 'invoices' },
@@ -164,7 +166,38 @@ function Sidebar({ onClose }) {
                     {b.is_owner ? 'Owner' : b.role}
                   </div>
                 </div>
-                {b.tenant_id === tenantId && <span style={{ color: '#10B981', fontSize: '12px' }}>✓</span>}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {b.tenant_id === tenantId && <span style={{ color: '#10B981', fontSize: '12px' }}>✓</span>}
+                  {b.is_owner && (
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (!window.confirm(`"${b.business_name}" ডিলিট করবেন? এই কাজটি ফিরিয়ে আনা যাবে না।`)) return;
+                        try {
+                          await deleteBusiness(b.tenant_id);
+                          toast.success(`"${b.business_name}" ডিলিট হয়েছে!`);
+                          window.location.reload();
+                        } catch (err) {
+                          toast.error(err.message);
+                        }
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'rgba(255,80,80,0.7)',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        padding: '2px 4px',
+                        borderRadius: '4px',
+                        lineHeight: 1
+                      }}
+                      title="Delete this business"
+                    >
+                      🗑️
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
 

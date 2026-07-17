@@ -344,6 +344,30 @@ export async function redeemAppSumoCode(userId, code) {
   return updatedProfile;
 }
 
+export async function deleteBusiness(businessId) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+  
+  // Only owner can delete their own business
+  const { data: profile } = await supabase
+    .from('business_profile')
+    .select('user_id, business_name')
+    .eq('id', businessId)
+    .maybeSingle();
+    
+  if (!profile) throw new Error('Business not found');
+  if (profile.user_id !== user.id) throw new Error('Only the owner can delete this business');
+  
+  const { error } = await supabase
+    .from('business_profile')
+    .delete()
+    .eq('id', businessId);
+    
+  if (error) throw error;
+  invalidateDashboardCache(businessId);
+  return true;
+}
+
 // ─── CUSTOMERS / SUPPLIERS ───────────────────────────────────────
 export async function getParties(userId, type, page = null, limit = null, search = '') {
   const tenantId = await getTenantId(userId);
