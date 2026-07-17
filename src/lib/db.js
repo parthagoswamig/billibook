@@ -293,6 +293,57 @@ export async function saveProfile(userId, profile, createNew = false) {
   return result;
 }
 
+export async function redeemAppSumoCode(userId, code) {
+  const user = await verifyWritePermission('save', 'business_profile');
+  const tenantId = await getTenantId(userId);
+  
+  // 1. Check if code is valid and not redeemed yet
+  const { data: codeData, error: codeError } = await supabase
+    .from('appsumo_codes')
+    .select('*')
+    .eq('code', code.trim())
+    .maybeSingle();
+    
+  if (codeError) throw codeError;
+  if (!codeData) throw new Error('Invalid AppSumo code. Please double check the code.');
+  if (codeData.is_redeemed) throw new Error('This code has already been redeemed.');
+  
+  // 2. Mark code as redeemed in appsumo_codes
+  const { error: updateCodeError } = await supabase
+    .from('appsumo_codes')
+    .update({ 
+      is_redeemed: true, 
+      redeemed_by: user.email, 
+      redeemed_at: new Date().toISOString() 
+    })
+    .eq('code', codeData.code);
+    
+  if (updateCodeError) throw updateCodeError;
+  
+  // 3. Update business_profile plan column to 'premium'
+  const { data: updatedProfile, error: profileError } = await supabase
+    .from('business_profile')
+    .update({ plan: 'premium' })
+    .eq('id', tenantId)
+    .select()
+    .single();
+    
+  if (profileError) throw profileError;
+  
+  // 4. Log audit log
+  await supabase.from('audit_logs').insert([{
+    user_id: user.id,
+    business_id: tenantId,
+    action: 'redeem_code',
+    entity_type: 'business_profile',
+    entity_id: tenantId,
+    details: { code: codeData.code, plan: 'premium' }
+  }]);
+  
+  invalidateDashboardCache(tenantId);
+  return updatedProfile;
+}
+
 // ─── CUSTOMERS / SUPPLIERS ───────────────────────────────────────
 export async function getParties(userId, type, page = null, limit = null, search = '') {
   const tenantId = await getTenantId(userId);
