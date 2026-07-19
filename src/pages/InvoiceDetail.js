@@ -10,8 +10,9 @@ import {
 } from '../lib/db';
 import {
   formatCurrency, formatDate, PAYMENT_MODES, splitGst,
-  buildWhatsAppUrl, getDocumentDetailRoute,
+  buildWhatsAppUrl, getDocumentDetailRoute, buildInvoiceWhatsAppMessage,
 } from '../lib/utils';
+import toast from 'react-hot-toast';
 import './InvoiceDetail.css';
 
 function numberToWords(amount) {
@@ -117,8 +118,9 @@ function InvoiceDetail() {
   const items = invoice.invoice_items || [];
   const cfg = DOCUMENT_KINDS[invoice.document_kind] || { label: 'Invoice', route: '/invoices' };
   const backRoute = getDocumentDetailRoute(invoice.type, invoice.document_kind);
-  const shareText = `Dear ${invoice.customers?.name || 'Customer'},\n\nPlease find attached ${cfg.label} ${invoice.invoice_no} for ${formatCurrency(invoice.total, currency)}.\n\nThank you,\n${profile?.business_name || 'us'}`;
-  const whatsappUrl = buildWhatsAppUrl(invoice.customers?.phone, shareText);
+  const detailedShareText = buildInvoiceWhatsAppMessage(invoice, invoice.customers, profile?.business_name || 'us', currency);
+  const whatsappUrl = buildWhatsAppUrl(invoice.customers?.phone, detailedShareText);
+  const smsUrl = `sms:${invoice.customers?.phone || ''}?body=${encodeURIComponent(detailedShareText)}`;
 
   const canConvert = invoice.document_kind === 'quotation' || invoice.document_kind === 'proforma' || invoice.document_kind === 'delivery_challan';
   const canPay = (invoice.document_kind === 'sale_invoice' || invoice.document_kind === 'purchase_bill') && invoice.balance > 0;
@@ -194,7 +196,19 @@ function InvoiceDetail() {
           <div className="action-buttons no-print">
             <button className="secondary-button" type="button" onClick={() => navigate(backRoute)}>← Back</button>
             <button className="secondary-button" type="button" onClick={() => window.print()}>🖨️ Print</button>
-            <a className="secondary-button wa-btn" href={whatsappUrl} target="_blank" rel="noreferrer">💬 WhatsApp</a>
+            <a className="secondary-button wa-btn" href={whatsappUrl} target="_blank" rel="noreferrer" style={{ background: '#25D366', color: '#fff', borderColor: '#25D366' }}>💬 WhatsApp</a>
+            <a className="secondary-button sms-btn" href={smsUrl} style={{ background: '#0284c7', color: '#fff', borderColor: '#0284c7' }}>📱 SMS</a>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(detailedShareText);
+                toast.success('Invoice details copied!');
+              }}
+              style={{ background: '#64748b', color: '#fff', borderColor: '#64748b' }}
+            >
+              📋 Copy
+            </button>
             {canEdit() && invoice.status !== 'paid' && (
               <button
                 className="secondary-button"

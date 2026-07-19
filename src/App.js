@@ -6,7 +6,8 @@ import { supabase, supabaseConfigError } from './db';
 import { RoleProvider, useRole } from './lib/RoleContext';
 import { BusinessProvider } from './lib/BusinessContext';
 import { ThemeProvider } from './lib/ThemeContext';
-import { Toaster } from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
+import { saveInvoice } from './lib/db';
 import Customers from './pages/Customers';
 import Dashboard from './pages/Dashboard';
 import Expenses from './pages/Expenses';
@@ -64,8 +65,65 @@ function SuperAdminRoute({ element }) {
 }
 
 function AppShell() {
-  const { loading } = useRole();
+  const { loading, tenantId } = useRole();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    if (!tenantId) return;
+
+    let isSyncing = false;
+
+    const syncOfflineData = async () => {
+      if (!navigator.onLine || isSyncing) return;
+      
+      const offlineKey = `offline_invoices_${tenantId}`;
+      const offlineList = JSON.parse(localStorage.getItem(offlineKey) || '[]');
+      if (offlineList.length === 0) return;
+
+      isSyncing = true;
+      const toastId = toast.loading(`Syncing ${offlineList.length} offline invoice(s)...`);
+      let successCount = 0;
+      const remainingList = [];
+
+      for (const item of offlineList) {
+        try {
+          const cleanInvoice = { ...item.invoice };
+          delete cleanInvoice.id;
+          delete cleanInvoice.is_offline;
+          delete cleanInvoice.customers;
+          
+          await saveInvoice(tenantId, cleanInvoice, item.items);
+          successCount++;
+        } catch (err) {
+          console.error("Failed to sync offline invoice:", err);
+          remainingList.push(item);
+        }
+      }
+
+      localStorage.setItem(offlineKey, JSON.stringify(remainingList));
+      toast.dismiss(toastId);
+
+      if (successCount > 0) {
+        toast.success(`🎉 Successfully synced ${successCount} offline invoice(s)!`);
+        // Notify pages to update lists
+        window.dispatchEvent(new Event('offline_invoice_added'));
+      }
+      if (remainingList.length > 0) {
+        toast.error(`⚠️ Failed to sync ${remainingList.length} invoice(s). Will retry later.`);
+      }
+      isSyncing = false;
+    };
+
+    window.addEventListener('online', syncOfflineData);
+    
+    // Check initially after a brief delay
+    const initialSyncTimer = setTimeout(syncOfflineData, 3000);
+
+    return () => {
+      window.removeEventListener('online', syncOfflineData);
+      clearTimeout(initialSyncTimer);
+    };
+  }, [tenantId]);
 
   if (loading) return <div className="loading-screen">Loading...</div>;
 

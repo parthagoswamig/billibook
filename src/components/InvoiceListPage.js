@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import PageSection from './PageSection';
 import SimpleTable from './SimpleTable';
 import Pagination from './Pagination';
@@ -92,6 +93,21 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [hasDraft, setHasDraft] = useState(false);
+  const [offlineInvoices, setOfflineInvoices] = useState([]);
+
+  const loadOfflineInvoices = React.useCallback(() => {
+    if (!tenantId) return;
+    const list = JSON.parse(localStorage.getItem(`offline_invoices_${tenantId}`) || '[]');
+    setOfflineInvoices(list);
+  }, [tenantId]);
+
+  useEffect(() => {
+    loadOfflineInvoices();
+    window.addEventListener('offline_invoice_added', loadOfflineInvoices);
+    return () => {
+      window.removeEventListener('offline_invoice_added', loadOfflineInvoices);
+    };
+  }, [loadOfflineInvoices]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -145,6 +161,19 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
   useEffect(() => {
     const loadDropdowns = async () => {
       if (!tenantId) return;
+      const cachedParties = localStorage.getItem(`cached_parties_${tenantId}_${partyType}`);
+      const cachedProducts = localStorage.getItem(`cached_products_${tenantId}`);
+      const cachedWarehouses = localStorage.getItem(`cached_warehouses_${tenantId}`);
+      if (cachedParties) {
+        try { setParties(JSON.parse(cachedParties)); } catch(e) {}
+      }
+      if (cachedProducts) {
+        try { setProducts(JSON.parse(cachedProducts)); } catch(e) {}
+      }
+      if (cachedWarehouses) {
+        try { setWarehouses(JSON.parse(cachedWarehouses)); } catch(e) {}
+      }
+
       try {
         const [pts, prods, whs] = await Promise.all([
           getParties(tenantId, partyType),
@@ -154,6 +183,9 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
         setParties(pts);
         setProducts(prods);
         setWarehouses(whs || []);
+        localStorage.setItem(`cached_parties_${tenantId}_${partyType}`, JSON.stringify(pts));
+        localStorage.setItem(`cached_products_${tenantId}`, JSON.stringify(prods));
+        localStorage.setItem(`cached_warehouses_${tenantId}`, JSON.stringify(whs || []));
       } catch (err) {
         console.error('Failed to load static dropdown metadata', err);
       }
@@ -164,28 +196,82 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
   const load = async () => {
     if (!tenantId) return;
     setLoading(true);
+
+    const cacheKey = `cached_invoices_${tenantId}_${cfg.type}_${documentKind}_${page}_${limit}_${search}`;
+    const cachedData = localStorage.getItem(cacheKey);
+    if (cachedData) {
+      try {
+        const parsed = JSON.parse(cachedData);
+        setInvoices(parsed);
+        setTotalCount(parsed.totalCount || 0);
+      } catch (e) {}
+    }
+
     try {
       const inv = await getInvoices(tenantId, cfg.type, documentKind, page, limit, search);
       setInvoices(inv);
       setTotalCount(inv.totalCount || 0);
+      localStorage.setItem(cacheKey, JSON.stringify(inv));
 
       if (location.state?.openCreate && canCreate('invoices')) {
         navigate(location.pathname, { replace: true, state: {} });
-        const businessProf = await getProfile(tenantId);
+        
+        let businessProf;
+        if (isOnline) {
+          businessProf = await getProfile(tenantId);
+          if (businessProf) localStorage.setItem(`cached_profile_${tenantId}`, JSON.stringify(businessProf));
+        } else {
+          const cachedProf = localStorage.getItem(`cached_profile_${tenantId}`);
+          if (cachedProf) businessProf = JSON.parse(cachedProf);
+        }
+
         const dueDays = businessProf?.default_due_days ?? 7;
-        const nextNo = await getNextInvoiceNo(tenantId, cfg.type, documentKind);
+        
+        let nextNo;
+        if (isOnline) {
+          nextNo = await getNextInvoiceNo(tenantId, cfg.type, documentKind);
+        } else {
+          const prefix = businessProf?.invoice_prefix || 'INV';
+          const offlineInvoicesKey = `offline_invoices_${tenantId}`;
+          const offlineList = JSON.parse(localStorage.getItem(offlineInvoicesKey) || '[]');
+          
+          let maxNumber = 0;
+          const allInvs = [...inv, ...offlineList.map(item => item.invoice)];
+          allInvs.forEach(invoiceRow => {
+            const match = invoiceRow.invoice_no?.match(new RegExp(`^${prefix}-(\\d+)$`));
+            if (match) {
+              maxNumber = Math.max(maxNumber, parseInt(match[1], 10));
+            }
+          });
+          nextNo = `${prefix}-${String(maxNumber + 1).padStart(3, '0')}`;
+        }
         
         let currentParties = parties;
         let currentWarehouses = warehouses;
         if (currentParties.length === 0 || currentWarehouses.length === 0) {
-          const [pts, whs] = await Promise.all([
-            getParties(tenantId, partyType),
-            getWarehouses(tenantId)
-          ]);
-          currentParties = pts;
-          currentWarehouses = whs || [];
-          setParties(pts);
-          setWarehouses(currentWarehouses);
+          try {
+            const [pts, whs] = await Promise.all([
+              getParties(tenantId, partyType),
+              getWarehouses(tenantId)
+            ]);
+            currentParties = pts;
+            currentWarehouses = whs || [];
+            setParties(pts);
+            setWarehouses(currentWarehouses);
+            localStorage.setItem(`cached_parties_${tenantId}_${partyType}`, JSON.stringify(pts));
+            localStorage.setItem(`cached_warehouses_${tenantId}`, JSON.stringify(currentWarehouses));
+          } catch(e) {
+            const cachedP = localStorage.getItem(`cached_parties_${tenantId}_${partyType}`);
+            const cachedW = localStorage.getItem(`cached_warehouses_${tenantId}`);
+            if (cachedP) {
+              currentParties = JSON.parse(cachedP);
+              setParties(currentParties);
+            }
+            if (cachedW) {
+              currentWarehouses = JSON.parse(cachedW);
+              setWarehouses(currentWarehouses);
+            }
+          }
         }
         
         const firstParty = currentParties[0];
@@ -366,17 +452,13 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
 
   const handleSubmit = async (e, shouldPrint = false) => {
     if (e) e.preventDefault();
-    if (!isOnline) {
-      setError('⚠️ You are offline. Your active draft is saved locally, but you cannot save to the database until connectivity is restored.');
-      return;
-    }
-    if (!tenantId || !canCreate('invoices')) return;
-    setError('');
     const validItems = form.items.filter((i) => i.name && i.qty && i.price);
     if (!form.customerId || validItems.length === 0) {
       setError('Select a party and add at least one item');
       return;
     }
+    setError('');
+
     const rawT = calcInvoiceTotals(
       validItems.map((i) => ({ qty: parseFloat(i.qty), price: parseFloat(i.price), gst: parseFloat(i.gst) || 0, discount: parseFloat(i.discount) || 0 })),
       form.discount, 0, form.shippingCharges,
@@ -393,6 +475,59 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
         return;
       }
     }
+
+    if (!isOnline) {
+      if (form.editId) {
+        setError('Editing existing invoices is not supported offline.');
+        return;
+      }
+
+      const offlineInvoicesKey = `offline_invoices_${tenantId}`;
+      const offlineList = JSON.parse(localStorage.getItem(offlineInvoicesKey) || '[]');
+      const tempId = `offline-${Date.now()}`;
+
+      const customer = parties.find(p => p.id === form.customerId);
+      
+      const invoiceData = {
+        type: cfg.type, document_kind: documentKind, invoice_no: form.invoiceNo,
+        customer_id: form.customerId, date: form.date, due_date: form.dueDate || null,
+        subtotal: rawT.subtotal, gst_amount: rawT.gstAmount, discount: parseFloat(form.discount) || 0, round_off: rOff,
+        shipping_charges: parseFloat(form.shippingCharges) || 0,
+        state_of_supply: form.stateOfSupply || null,
+        total: finalTotal, paid: parseFloat(form.paid) || 0, balance: balanceVal, notes: form.notes,
+        status: balanceVal <= 0 ? 'paid' : parseFloat(form.paid) > 0 ? 'partial' : 'unpaid',
+        last_payment_mode: parseFloat(form.paid) > 0 ? form.paymentMode : null,
+        warehouse_id: form.warehouseId || null,
+        notes: form.notes ? form.notes : 'Created Offline',
+      };
+
+      const mappedItems = validItems.map((i) => ({
+        product_id: i.product_id || null, name: i.name, hsn: i.hsn,
+        qty: parseFloat(i.qty), price: parseFloat(i.price), gst: parseFloat(i.gst) || 0,
+        unit: i.unit || 'Pcs', discount: parseFloat(i.discount) || 0,
+        amount: (parseFloat(i.qty) * parseFloat(i.price)) * (1 - (parseFloat(i.discount) || 0) / 100),
+      }));
+
+      const newOfflineInvoice = {
+        id: tempId,
+        tenantId,
+        invoice: { ...invoiceData, id: tempId, customers: customer },
+        items: mappedItems,
+        timestamp: Date.now()
+      };
+
+      offlineList.push(newOfflineInvoice);
+      localStorage.setItem(offlineInvoicesKey, JSON.stringify(offlineList));
+      localStorage.removeItem(`invoice_draft_${documentKind}`);
+      
+      window.dispatchEvent(new Event('offline_invoice_added'));
+      setShowModal(false);
+      toast.success(`✓ Invoice ${form.invoiceNo} saved offline! It will sync when online.`);
+      load();
+      return;
+    }
+
+    if (!tenantId || !canCreate('invoices')) return;
 
     try {
       if (form.editId) {
@@ -451,7 +586,16 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
     }
   };
 
-  const filtered = invoices;
+  const combinedInvoices = React.useMemo(() => {
+    if (documentKind !== 'sale_invoice') return invoices;
+    const offlineRecords = offlineInvoices.map(item => ({
+      ...item.invoice,
+      is_offline: true
+    }));
+    return [...offlineRecords, ...invoices];
+  }, [invoices, offlineInvoices, documentKind]);
+
+  const filtered = combinedInvoices;
 
   const fmt = (n) => formatCurrency(n, currency);
 
@@ -506,9 +650,21 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
           <>
             <SimpleTable
               columns={['Number', partyLabel, 'Amount', 'Status', 'Date']}
-              rows={filtered.map((inv) => [inv.invoice_no, inv.customers?.name || '—', fmt(inv.total), inv.status, formatDate(inv.date)])}
+              rows={filtered.map((inv) => [
+                inv.invoice_no + (inv.is_offline ? ' ⏳' : ''),
+                inv.customers?.name || '—',
+                fmt(inv.total),
+                inv.is_offline ? 'Sync Pending' : inv.status,
+                formatDate(inv.date)
+              ])}
               rowIds={filtered.map((inv) => inv.id)}
-              onRowClick={(id) => navigate(`${cfg.route}/${id}`)}
+              onRowClick={(id) => {
+                if (id.startsWith('offline-')) {
+                  toast.error("Offline invoice details will be available after syncing online.");
+                  return;
+                }
+                navigate(`${cfg.route}/${id}`);
+              }}
             />
             <Pagination
               page={page}

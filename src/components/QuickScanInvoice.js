@@ -29,11 +29,22 @@ function QuickScanInvoice({ products, onClose, onInvoiceCreated }) {
   // Load ALL parties on mount (high limit to avoid pagination cut-off)
   useEffect(() => {
     if (!tenantId) return;
+
+    const cachedParties = localStorage.getItem(`cached_parties_${tenantId}_customer`);
+    if (cachedParties) {
+      try {
+        const list = JSON.parse(cachedParties);
+        setParties(list);
+        if (list.length > 0) setCustomerId(list[0].id);
+      } catch (e) {}
+    }
+
     getParties(tenantId, 'customer', 1, 1000, '').then(pts => {
       const list = Array.isArray(pts) ? pts : (pts?.data || pts || []);
       setParties(list);
+      localStorage.setItem(`cached_parties_${tenantId}_customer`, JSON.stringify(list));
       if (list.length > 0) setCustomerId(list[0].id);
-    });
+    }).catch(() => {});
   }, [tenantId]);
 
   // Focus manual input when not using camera
@@ -144,10 +155,44 @@ function QuickScanInvoice({ products, onClose, onInvoiceCreated }) {
     setSaving(true);
     setSaveError('');
     try {
-      const businessProf = await getProfile(tenantId);
+      const isOnline = navigator.onLine;
+      let businessProf;
+      if (isOnline) {
+        businessProf = await getProfile(tenantId);
+        if (businessProf) {
+          localStorage.setItem(`cached_profile_${tenantId}`, JSON.stringify(businessProf));
+        }
+      } else {
+        const cached = localStorage.getItem(`cached_profile_${tenantId}`);
+        if (cached) {
+          businessProf = JSON.parse(cached);
+        }
+      }
+
       const dueDays = businessProf?.default_due_days ?? 7;
-      const invoiceNo = await getNextInvoiceNo(tenantId, 'sale', 'sale_invoice');
       const today = new Date().toISOString().split('T')[0];
+
+      let invoiceNo;
+      if (isOnline) {
+        invoiceNo = await getNextInvoiceNo(tenantId, 'sale', 'sale_invoice');
+      } else {
+        const prefix = businessProf?.invoice_prefix || 'INV';
+        const offlineInvoicesKey = `offline_invoices_${tenantId}`;
+        const offlineList = JSON.parse(localStorage.getItem(offlineInvoicesKey) || '[]');
+        
+        const cachedInvoicesKey = `cached_invoices_${tenantId}_sale_sale_invoice_1_50_`;
+        const cachedInvs = JSON.parse(localStorage.getItem(cachedInvoicesKey) || '[]');
+        
+        let maxNumber = 0;
+        const allInvs = [...cachedInvs, ...offlineList.map(item => item.invoice)];
+        allInvs.forEach(inv => {
+          const match = inv.invoice_no?.match(new RegExp(`^${prefix}-(\\d+)$`));
+          if (match) {
+            maxNumber = Math.max(maxNumber, parseInt(match[1], 10));
+          }
+        });
+        invoiceNo = `${prefix}-${String(maxNumber + 1).padStart(3, '0')}`;
+      }
 
       const items = cart.map(c => {
         const qty = parseFloat(c.qty) || 1;
@@ -173,7 +218,7 @@ function QuickScanInvoice({ products, onClose, onInvoiceCreated }) {
       });
       const total = subtotal + gstAmount;
 
-      const inv = await saveInvoice(tenantId, {
+      const invoiceData = {
         type: 'sale', document_kind: 'sale_invoice',
         invoice_no: invoiceNo,
         customer_id: customerId,
@@ -186,10 +231,33 @@ function QuickScanInvoice({ products, onClose, onInvoiceCreated }) {
         status: 'unpaid',
         last_payment_mode: null,
         warehouse_id: null,
-        notes: 'Created via Quick Scan',
-      }, items);
+        notes: isOnline ? 'Created via Quick Scan' : 'Created via Quick Scan (Offline Draft)',
+      };
 
-      onInvoiceCreated(inv.id);
+      if (isOnline) {
+        const inv = await saveInvoice(tenantId, invoiceData, items);
+        onInvoiceCreated(inv.id);
+      } else {
+        const offlineInvoicesKey = `offline_invoices_${tenantId}`;
+        const offlineList = JSON.parse(localStorage.getItem(offlineInvoicesKey) || '[]');
+        const tempId = `offline-${Date.now()}`;
+        
+        const cachedParties = JSON.parse(localStorage.getItem(`cached_parties_${tenantId}_customer`) || '[]');
+        const customer = cachedParties.find(p => p.id === customerId);
+
+        const newOfflineInvoice = {
+          id: tempId,
+          tenantId,
+          invoice: { ...invoiceData, id: tempId, customers: customer },
+          items,
+          timestamp: Date.now()
+        };
+        offlineList.push(newOfflineInvoice);
+        localStorage.setItem(offlineInvoicesKey, JSON.stringify(offlineList));
+        
+        window.dispatchEvent(new Event('offline_invoice_added'));
+        onInvoiceCreated(tempId);
+      }
       onClose();
     } catch (err) {
       setSaveError(err.message || 'Failed to create invoice');
