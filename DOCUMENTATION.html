@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation - KhataPe Billing & Inventory Software</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f8fafc;
+            --muted: #94a3b8;
+            --accent: #10b981;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 40px 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 30px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            font-size: 32px;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+        .header p {
+            color: var(--muted);
+            font-size: 16px;
+        }
+        .badge {
+            background: var(--primary);
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .section {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+        h2 {
+            color: #fff;
+            font-size: 22px;
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 8px;
+            display: inline-block;
+        }
+        code, pre {
+            background: #090d16;
+            color: #38bdf8;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-family: monospace;
+        }
+        pre {
+            padding: 16px;
+            overflow-x: auto;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        ol, ul {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 12px;
+        }
+        .note {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 4px solid var(--accent);
+            padding: 16px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>KhataPe Documentation</h1>
+            <p>GST/VAT Invoicing, Billing & Inventory Management System</p>
+            <span class="badge">Version 1.0.0</span>
+        </div>
+
+        <div class="section">
+            <h2>1. System Requirements</h2>
+            <ul>
+                <li><strong>Node.js:</strong> v16.x or higher</li>
+                <li><strong>Package Manager:</strong> npm or yarn</li>
+                <li><strong>Database:</strong> Supabase (Free or Self-hosted PostgreSQL)</li>
+                <li><strong>Hosting:</strong> Vercel, Netlify, cPanel, or any static Node web server</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>2. Database Setup (Supabase)</h2>
+            <ol>
+                <li>Create a free account on <a href="https://supabase.com" target="_blank" style="color: var(--primary);">Supabase.com</a>.</li>
+                <li>Create a new project and wait for database setup to finish.</li>
+                <li>Go to <strong>SQL Editor</strong> in your Supabase Dashboard.</li>
+                <li>Open the <code>schema.sql</code> file provided in this package, copy its full content, paste it into SQL Editor, and click <strong>RUN</strong>.</li>
+                <li>Go to <strong>Project Settings &rarr; API</strong> to find your <code>Project URL</code> and <code>anon / public key</code>.</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>3. Application Installation</h2>
+            <ol>
+                <li>Unzip the package and open the project directory in your terminal.</li>
+                <li>Create a file named <code>.env</code> by duplicating <code>.env.example</code>.</li>
+                <li>Fill in your Supabase credentials in <code>.env</code>:
+                    <pre>REACT_APP_SUPABASE_URL=https://your-project.supabase.co
+REACT_APP_SUPABASE_ANON_KEY=your-supabase-anon-key</pre>
+                </li>
+                <li>Install dependencies:
+                    <pre>npm install</pre>
+                </li>
+                <li>Start local development server:
+                    <pre>npm start</pre>
+                </li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>4. Production Deployment (Vercel / Netlify)</h2>
+            <ol>
+                <li>Push your codebase to your GitHub / GitLab repository.</li>
+                <li>Connect your repository to <strong>Vercel</strong> or <strong>Netlify</strong>.</li>
+                <li>Add the Environment Variables (<code>REACT_APP_SUPABASE_URL</code> and <code>REACT_APP_SUPABASE_ANON_KEY</code>) in your deployment dashboard settings.</li>
+                <li>Click <strong>Deploy</strong>. Your application will be live in 1 minute!</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>5. Features Overview</h2>
+            <ul>
+                <li>⚡ <strong>Compliant GST/VAT Invoicing:</strong> Auto-calculate CGST, SGST, IGST, or Custom Sales Tax.</li>
+                <li>📦 <strong>Inventory & Stock Management:</strong> Real-time stock auto-adjustments upon sale or purchase.</li>
+                <li>🔍 <strong>Barcode & QR Scanner POS:</strong> Camera and USB barcode scanner support.</li>
+                <li>👥 <strong>Team & Role Permissions:</strong> Delegate bookkeeping to Accountants or Viewers.</li>
+                <li>📶 <strong>Offline Billing Support:</strong> Queue invoices offline and auto-sync when connection restores.</li>
+            </ul>
+        </div>
+
+        <div class="note">
+            <strong>Need Support?</strong> If you have any questions or need setup help, please contact us via our CodeCanyon profile page.
+        </div>
+    </div>
+</body>
+</html>
