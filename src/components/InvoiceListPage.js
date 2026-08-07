@@ -1072,18 +1072,22 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
                               />
                             </td>
                             <td>
-                              <select 
-                                className="spreadsheet-input" 
-                                value={item.gst} 
-                                onChange={(e) => updateItem(idx, 'gst', parseInt(e.target.value, 10))}
-                              >
-                                <option value="0">0%</option>
-                                <option value="3">3%</option>
-                                <option value="5">5%</option>
-                                <option value="12">12%</option>
-                                <option value="18">18%</option>
-                                <option value="28">28%</option>
-                              </select>
+                              {form.taxMode === 'none' ? (
+                                <span style={{ padding: '0 8px', color: '#94A3B8', fontSize: '13px', fontWeight: '500' }}>0%</span>
+                              ) : (
+                                <select 
+                                  className="spreadsheet-input" 
+                                  value={item.gst} 
+                                  onChange={(e) => updateItem(idx, 'gst', parseInt(e.target.value, 10))}
+                                >
+                                  <option value="0">0%</option>
+                                  <option value="3">3%</option>
+                                  <option value="5">5%</option>
+                                  <option value="12">12%</option>
+                                  <option value="18">18%</option>
+                                  <option value="28">28%</option>
+                                </select>
+                              )}
                             </td>
                             <td>
                               <span style={{ padding: '0 8px', color: '#64748B' }}>{fmt(taxable)}</span>
