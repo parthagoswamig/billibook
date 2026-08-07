@@ -99,14 +99,15 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
     let invoiceDate = '';
     const items = [];
 
-    // 1. Extract Customer Info & Metadata
+    // 1. Extract Customer Info & Document Metadata
     lines.forEach((line) => {
       const lower = line.toLowerCase();
 
       // Customer Name Detection
       if (!customerName) {
-        if (lower.startsWith('bill to') || lower.startsWith('customer') || lower.startsWith('party') || lower.startsWith('name') || lower.startsWith('to:')) {
-          customerName = line.replace(/bill to|customer|party name|customer name|name|to:/gi, '').replace(/[:\-]/g, '').trim();
+        if (lower.includes('customer name') || lower.includes('customer') || lower.includes('bill to') || lower.includes('party name') || lower.includes('party:')) {
+          const cleaned = line.replace(/customer name|customer|bill to|party name|party|name|to:/gi, '').replace(/[:\-]/g, '').trim();
+          if (cleaned.length > 2) customerName = cleaned;
         }
       }
 
@@ -145,9 +146,9 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
 
     // Fallback Customer Name if not found with prefix
     if (!customerName) {
-      for (const line of lines.slice(0, 8)) {
+      for (const line of lines.slice(0, 10)) {
         const lower = line.toLowerCase();
-        if (lower.includes('paints') || lower.includes('hardware') || lower.includes('tax invoice') || lower.includes('cash memo')) continue;
+        if (lower.includes('paints') || lower.includes('hardware') || lower.includes('tax invoice') || lower.includes('cash memo') || lower.includes('retail') || lower.includes('bill pad') || lower.includes('enterprise')) continue;
         if (line.match(/[a-zA-Z]/) && line.length > 3 && !line.match(/\d{5,}/)) {
           customerName = line.trim();
           break;
@@ -155,21 +156,34 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
       }
     }
 
-    // 2. Extract Line Items
-    const boilerplateWords = ['official price list', 'tax invoice', 'thank you', 'authorized signatory', 'file:///', 'page 1', 'subtotal', 'grand total', 'terms & conditions'];
-
+    // 2. Extract Line Items (Strict Header/Footer Metadata Exclude Filter)
     lines.forEach((line) => {
       const lower = line.toLowerCase();
-      if (boilerplateWords.some(bp => lower.includes(bp))) return;
-      if (lower.startsWith('item name') || lower.startsWith('sl') || lower.startsWith('particulars')) return;
+
+      // STRICT METADATA EXCLUSION FILTER: Skip header & footer lines from item list
+      const isMetadataLine = (
+        lower.includes('bill no') || lower.includes('invoice no') || lower.includes('inv no') || lower.includes('inv-') ||
+        lower.includes('date') || lower.includes('phone') || lower.includes('mobile') ||
+        lower.includes('gstin') || lower.includes('customer') || lower.includes('bill to') ||
+        lower.includes('party') || lower.includes('grand total') || lower.includes('subtotal') ||
+        lower.includes('total amount') || lower.includes('cash memo') || lower.includes('bill pad') ||
+        lower.includes('sample paper') || lower.includes('retail cash memo') || lower.includes('thank you') ||
+        lower.includes('rates subject') || lower.includes('visit again') || lower.startsWith('sl') ||
+        lower.startsWith('item description') || lower.startsWith('particulars') || lower.startsWith('qty') ||
+        lower.includes('page') || lower.includes('file:///')
+      );
+
+      if (isMetadataLine) return;
 
       const numbers = line.match(/\d+(\.\d+)?/g);
       if (!numbers || numbers.length === 0) return;
 
+      // Extract HSN
       let hsn = '';
       const hsnMatch = line.match(/\b(\d{4,8})\b/);
       if (hsnMatch) hsn = hsnMatch[1];
 
+      // Extract Unit
       let unit = 'Pcs';
       const unitMatch = line.match(/\b(pcs|ltr|kg|can|drum|bucket|box|set|pkt|roll|mtr|gm|ml|btl|nos|bag)\b/i);
       if (unitMatch) {
@@ -186,15 +200,26 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
         else unit = 'Pcs';
       }
 
-      const priceMatch = line.match(/₹?\s*(\d+(\.\d+)?)\s*$/) || line.match(/(\d+(\.\d+)?)\s*$/);
+      // Extract Qty and Price
+      const parsedNums = numbers.map(n => parseFloat(n)).filter(n => !isNaN(n));
       let price = 0;
-      if (priceMatch) {
-        price = parseFloat(priceMatch[1]);
-      } else {
-        const parsedNums = numbers.map(n => parseFloat(n));
-        price = parsedNums[parsedNums.length - 1] || 0;
+      let qty = 1;
+
+      if (parsedNums.length >= 2) {
+        // e.g. "Asian Paints 2 920.00" -> qty = 2, price = 920.00
+        const possibleQty = parsedNums[0];
+        if (possibleQty > 0 && possibleQty <= 500) {
+          qty = possibleQty;
+        }
+        price = parsedNums[parsedNums.length - 1];
+      } else if (parsedNums.length === 1) {
+        price = parsedNums[0];
       }
 
+      // Sanity Check: Price must be between 1 and 500,000 (skip phone numbers or year 2026)
+      if (price <= 0 || price > 500000) return;
+
+      // Isolate Product Name
       let namePart = line
         .replace(/₹|Rs\.|INR/gi, '')
         .replace(/\b\d+(\.\d+)?\s*$/, '')
@@ -208,7 +233,7 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
         items.push({
           name: namePart,
           hsn: hsn,
-          qty: 1,
+          qty: qty,
           unit: unit,
           price: price,
           discount: 0,
@@ -330,12 +355,13 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
 
       if (onScanComplete) {
         onScanComplete({
-          customerId: targetCustomerId || (parties?.[0]?.id || ''),
+          customerId: targetCustomerId || '',
+          customerName: parsedData.customerName || '',
           items: parsedData.items.length > 0 ? parsedData.items : [{ name: 'Scanned Item', qty: 1, price: 100, gst: 18, unit: 'Pcs' }]
         });
       }
 
-      toast.success(`⚡ Extracted ${parsedData.items.length} item(s) & Populated Invoice automatically!`);
+      toast.success(`⚡ Extracted ${parsedData.items.length} product(s) & Populated Invoice!`);
       onClose();
     } catch (err) {
       console.error("Bill Scan Failed:", err);

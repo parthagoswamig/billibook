@@ -52,6 +52,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
       const targetCustId = scannedData.customerId || currentParties?.[0]?.id || '';
       const businessProf = await getProfile(tenantId);
       const nextNo = await getNextInvoiceNo(tenantId, cfg.type, documentKind);
+      const selectedParty = (currentParties || []).find(p => p.id === targetCustId);
       
       setForm({
         invoiceNo: nextNo,
@@ -63,13 +64,16 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
         discount: 0,
         roundOff: 0,
         shippingCharges: 0,
-        stateOfSupply: (currentParties || []).find(p => p.id === targetCustId)?.state || businessProf?.state || '',
+        stateOfSupply: selectedParty?.state || businessProf?.state || '',
         autoRoundOff: true,
         paid: 0,
         paymentMode: 'Cash',
         taxMode: 'exclusive',
         items: scannedData.items || [{ product_id: '', name: '', hsn: '', qty: 1, unit: 'Pcs', price: 100, discount: 0, gst: 18 }]
       });
+      if (targetCustId) {
+        handleCustomerChange(targetCustId);
+      }
       setShowModal(true);
     } catch (err) {
       console.error("Failed to populate invoice form:", err);
