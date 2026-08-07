@@ -804,6 +804,7 @@ export async function saveInvoice(userId, invoice, items) {
     balance: invoice.balance ?? invoice.total,
     notes: invoice.notes || null,
     reference_invoice_id: invoice.reference_invoice_id || null,
+    tax_mode: invoice.tax_mode || 'exclusive',
     last_payment_mode: invoice.paid > 0 ? (invoice.last_payment_mode || 'Cash') : null,
     last_payment_at: invoice.paid > 0 ? new Date().toISOString() : null,
   };
@@ -870,6 +871,7 @@ export async function updateInvoice(invoiceId, userId, invoice, items, oldItems,
     last_payment_mode: invoice.paid > 0 ? (invoice.last_payment_mode || 'Cash') : null,
     last_payment_at: invoice.paid > 0 ? new Date().toISOString() : null,
     warehouse_id: newWhId,
+    tax_mode: invoice.tax_mode || 'exclusive',
   }).eq('id', invoiceId);
   if (invErr) throw invErr;
   await supabase.from('invoice_items').delete().eq('invoice_id', invoiceId);

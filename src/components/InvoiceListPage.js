@@ -67,6 +67,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
     autoRoundOff: true,
     paid: 0,
     paymentMode: 'Cash',
+    taxMode: 'exclusive',
     items: [{ product_id: '', name: '', hsn: '', qty: 1, unit: 'Pcs', price: '', discount: 0, gst: 18 }],
   });
 
@@ -335,6 +336,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
               autoRoundOff: false,
               paid: editInv.paid || 0,
               paymentMode: editInv.last_payment_mode || 'Cash',
+              taxMode: editInv.tax_mode || 'exclusive',
               items: mappedItems.length > 0 ? mappedItems : [{ product_id: '', name: '', hsn: '', qty: 1, unit: 'Pcs', price: '', discount: 0, gst: 18 }],
             });
             setShowModal(true);
@@ -455,7 +457,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
   // 1. Calculate raw total without roundOff
   const rawTotals = calcInvoiceTotals(
     form.items.filter((i) => i.qty && i.price).map((i) => ({ qty: i.qty, price: i.price, gst: i.gst, discount: i.discount })),
-    form.discount, 0, form.shippingCharges,
+    form.discount, 0, form.shippingCharges, form.taxMode || 'exclusive'
   );
   
   // 2. Compute round off if enabled
@@ -479,7 +481,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
 
     const rawT = calcInvoiceTotals(
       validItems.map((i) => ({ qty: parseFloat(i.qty), price: parseFloat(i.price), gst: parseFloat(i.gst) || 0, discount: parseFloat(i.discount) || 0 })),
-      form.discount, 0, form.shippingCharges,
+      form.discount, 0, form.shippingCharges, form.taxMode || 'exclusive'
     );
     const rOff = form.autoRoundOff ? Math.round(rawT.total) - rawT.total : parseFloat(form.roundOff) || 0;
     const finalTotal = rawT.total + rOff;
@@ -563,6 +565,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
           status: balanceVal <= 0 ? 'paid' : parseFloat(form.paid) > 0 ? 'partial' : 'unpaid',
           last_payment_mode: parseFloat(form.paid) > 0 ? form.paymentMode : null,
           warehouse_id: form.warehouseId || null,
+          tax_mode: form.taxMode || 'exclusive',
         }, validItems.map((i) => ({
           product_id: i.product_id || null, name: i.name, hsn: i.hsn,
           qty: parseFloat(i.qty), price: parseFloat(i.price), gst: parseFloat(i.gst) || 0,
@@ -587,6 +590,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
           status: balanceVal <= 0 ? 'paid' : parseFloat(form.paid) > 0 ? 'partial' : 'unpaid',
           last_payment_mode: parseFloat(form.paid) > 0 ? form.paymentMode : null,
           warehouse_id: form.warehouseId || null,
+          tax_mode: form.taxMode || 'exclusive',
         }, validItems.map((i) => ({
           product_id: i.product_id || null, name: i.name, hsn: i.hsn,
           qty: parseFloat(i.qty), price: parseFloat(i.price), gst: parseFloat(i.gst) || 0,
@@ -837,8 +841,33 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
 
               {/* Row 2: Line Items Tabular spreadsheet-style list */}
               <div className="line-items-section">
-                <div className="section-header-row">
+                <div className="section-header-row" style={{ flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
                   <h4>Items & Description</h4>
+
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', background: '#F8FAFC', padding: '6px 14px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                    <span style={{ fontWeight: '700', fontSize: '12px', color: '#475569' }}>Tax Pricing:</span>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '12px', fontWeight: (form.taxMode || 'exclusive') === 'exclusive' ? '700' : '500', color: (form.taxMode || 'exclusive') === 'exclusive' ? '#4F46E5' : '#64748B' }}>
+                      <input 
+                        type="radio" 
+                        name="taxMode" 
+                        value="exclusive" 
+                        checked={(form.taxMode || 'exclusive') === 'exclusive'} 
+                        onChange={() => setForm({ ...form, taxMode: 'exclusive' })} 
+                      />
+                      <span>Exclusive (GST Extra)</span>
+                    </label>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '12px', fontWeight: form.taxMode === 'inclusive' ? '700' : '500', color: form.taxMode === 'inclusive' ? '#10B981' : '#64748B' }}>
+                      <input 
+                        type="radio" 
+                        name="taxMode" 
+                        value="inclusive" 
+                        checked={form.taxMode === 'inclusive'} 
+                        onChange={() => setForm({ ...form, taxMode: 'inclusive' })} 
+                      />
+                      <span>Inclusive (GST Included)</span>
+                    </label>
+                  </div>
+
                   <button 
                     type="button" 
                     className="secondary-button" 
@@ -857,7 +886,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
                         <th style={{ width: '8%' }}>HSN</th>
                         <th style={{ width: '8%' }}>Qty</th>
                         <th style={{ width: '9%' }}>Unit</th>
-                        <th style={{ width: '10%' }}>Price/Unit</th>
+                        <th style={{ width: '10%' }}>{form.taxMode === 'inclusive' ? 'Price (Incl.)' : 'Price/Unit'}</th>
                         <th style={{ width: '8%' }}>Disc %</th>
                         <th style={{ width: '8%' }}>{profile?.tax_label || 'GST'} %</th>
                         <th style={{ width: '11%' }}>Taxable</th>
@@ -871,11 +900,25 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
                         const price = parseFloat(item.price) || 0;
                         const itemDisc = parseFloat(item.discount) || 0;
                         const gstRate = parseFloat(item.gst) || 0;
-                        const base = qty * price;
-                        const discAmt = base * (itemDisc / 100);
-                        const taxable = base - discAmt;
-                        const rowGst = taxable * (gstRate / 100);
-                        const netRowAmount = taxable + rowGst;
+                        
+                        let taxable = 0;
+                        let rowGst = 0;
+                        let netRowAmount = 0;
+
+                        if (form.taxMode === 'inclusive' && gstRate > 0) {
+                          const gross = qty * price;
+                          const discAmt = gross * (itemDisc / 100);
+                          const netInc = gross - discAmt;
+                          taxable = netInc / (1 + gstRate / 100);
+                          rowGst = netInc - taxable;
+                          netRowAmount = netInc;
+                        } else {
+                          const base = qty * price;
+                          const discAmt = base * (itemDisc / 100);
+                          taxable = base - discAmt;
+                          rowGst = taxable * (gstRate / 100);
+                          netRowAmount = taxable + rowGst;
+                        }
 
                         return (
                           <tr key={idx}>

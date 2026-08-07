@@ -305,11 +305,29 @@ function InvoiceDetail() {
                     const price = parseFloat(item.price) || 0;
                     const itemDisc = parseFloat(item.discount) || 0;
                     const gstRate = parseFloat(item.gst) || 0;
-                    const base = qty * price;
-                    const discAmt = base * (itemDisc / 100);
-                    const taxable = base - discAmt;
-                    const rowGst = taxable * (gstRate / 100);
-                    const netRowAmount = taxable + rowGst;
+                    const isInc = invoice.tax_mode === 'inclusive';
+
+                    let taxable = 0;
+                    let rowGst = 0;
+                    let netRowAmount = 0;
+                    let displayRate = price;
+
+                    if (isInc && gstRate > 0) {
+                      const gross = qty * price;
+                      const discAmt = gross * (itemDisc / 100);
+                      const netInc = gross - discAmt;
+                      taxable = netInc / (1 + gstRate / 100);
+                      rowGst = netInc - taxable;
+                      netRowAmount = netInc;
+                      displayRate = price / (1 + gstRate / 100);
+                    } else {
+                      const base = qty * price;
+                      const discAmt = base * (itemDisc / 100);
+                      taxable = base - discAmt;
+                      rowGst = taxable * (gstRate / 100);
+                      netRowAmount = taxable + rowGst;
+                      displayRate = price;
+                    }
 
                     return (
                       <tr key={item.id}>
@@ -317,7 +335,7 @@ function InvoiceDetail() {
                         <td style={{ textAlign: 'left', fontWeight: '500' }}>{item.name}</td>
                         <td>{item.hsn || '—'}</td>
                         <td style={{ textAlign: 'right' }}>{item.qty} {item.unit || 'Pcs'}</td>
-                        <td style={{ textAlign: 'right' }}>{fmt(item.price)}</td>
+                        <td style={{ textAlign: 'right' }}>{fmt(displayRate)}</td>
                         <td style={{ textAlign: 'right' }}>{item.discount > 0 ? `${item.discount}%` : '—'}</td>
                         <td style={{ textAlign: 'right' }}>{item.gst}%</td>
                         <td style={{ textAlign: 'right', fontWeight: '600' }}>{fmt(netRowAmount)}</td>

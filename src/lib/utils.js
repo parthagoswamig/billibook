@@ -22,7 +22,7 @@ export const calculateItemAmount = (quantity, unitPrice, gstRate) => {
   return baseAmount + gstAmount;
 };
 
-export function calcInvoiceTotals(items, discount = 0, roundOff = 0, shippingCharges = 0) {
+export function calcInvoiceTotals(items, discount = 0, roundOff = 0, shippingCharges = 0, taxMode = 'exclusive') {
   let subtotal = 0;
   let gstAmount = 0;
   for (const item of items) {
@@ -30,11 +30,22 @@ export function calcInvoiceTotals(items, discount = 0, roundOff = 0, shippingCha
     const price = parseFloat(item.price) || 0;
     const gst = parseFloat(item.gst) || 0;
     const itemDiscountPercent = parseFloat(item.discount) || 0;
-    const base = qty * price;
-    const itemDiscountAmount = base * (itemDiscountPercent / 100);
-    const taxable = base - itemDiscountAmount;
-    subtotal += taxable;
-    gstAmount += taxable * (gst / 100);
+
+    if (taxMode === 'inclusive' && gst > 0) {
+      const gross = qty * price;
+      const discAmt = gross * (itemDiscountPercent / 100);
+      const netInc = gross - discAmt;
+      const taxable = netInc / (1 + gst / 100);
+      const itemGst = netInc - taxable;
+      subtotal += taxable;
+      gstAmount += itemGst;
+    } else {
+      const base = qty * price;
+      const itemDiscountAmount = base * (itemDiscountPercent / 100);
+      const taxable = base - itemDiscountAmount;
+      subtotal += taxable;
+      gstAmount += taxable * (gst / 100);
+    }
   }
   const disc = parseFloat(discount) || 0;
   const shipping = parseFloat(shippingCharges) || 0;
