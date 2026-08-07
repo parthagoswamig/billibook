@@ -244,8 +244,8 @@ function InvoiceDetail() {
                   {profile?.gstin && <p className="business-detail"><strong>GSTIN:</strong> {profile.gstin}</p>}
                   {profile?.phone && <p className="business-detail"><strong>Phone:</strong> {profile.phone}</p>}
                   {profile?.email && <p className="business-detail"><strong>Email:</strong> {profile.email}</p>}
-                </div>
               </div>
+              <div className="invoice-meta-box">
                 <h2 className="tax-invoice-title">
                   {invoice.tax_mode === 'none' || (parseFloat(invoice.gst_amount) === 0 && invoice.tax_mode !== 'inclusive')
                     ? (invoice.type === 'purchase' ? 'PURCHASE BILL' : 'BILL OF SUPPLY / INVOICE')
