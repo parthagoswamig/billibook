@@ -521,11 +521,26 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
         notes: form.notes ? form.notes : 'Created Offline',
       };
 
+      const getItemRowAmount = (i) => {
+        const qty = parseFloat(i.qty) || 0;
+        const price = parseFloat(i.price) || 0;
+        const disc = parseFloat(i.discount) || 0;
+        const gst = form.taxMode === 'none' ? 0 : (parseFloat(i.gst) || 0);
+
+        if (form.taxMode === 'none' || form.taxMode === 'inclusive') {
+          return (qty * price) * (1 - disc / 100);
+        } else {
+          const taxable = (qty * price) * (1 - disc / 100);
+          return taxable + taxable * (gst / 100);
+        }
+      };
+
       const mappedItems = validItems.map((i) => ({
         product_id: i.product_id || null, name: i.name, hsn: i.hsn,
-        qty: parseFloat(i.qty), price: parseFloat(i.price), gst: parseFloat(i.gst) || 0,
+        qty: parseFloat(i.qty), price: parseFloat(i.price),
+        gst: form.taxMode === 'none' ? 0 : (parseFloat(i.gst) || 0),
         unit: i.unit || 'Pcs', discount: parseFloat(i.discount) || 0,
-        amount: (parseFloat(i.qty) * parseFloat(i.price)) * (1 - (parseFloat(i.discount) || 0) / 100),
+        amount: getItemRowAmount(i),
       }));
 
       const newOfflineInvoice = {
@@ -566,12 +581,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
           last_payment_mode: parseFloat(form.paid) > 0 ? form.paymentMode : null,
           warehouse_id: form.warehouseId || null,
           tax_mode: form.taxMode || 'exclusive',
-        }, validItems.map((i) => ({
-          product_id: i.product_id || null, name: i.name, hsn: i.hsn,
-          qty: parseFloat(i.qty), price: parseFloat(i.price), gst: parseFloat(i.gst) || 0,
-          unit: i.unit || 'Pcs', discount: parseFloat(i.discount) || 0,
-          amount: (parseFloat(i.qty) * parseFloat(i.price)) * (1 - (parseFloat(i.discount) || 0) / 100),
-        })), [], documentKind);
+        }, mappedItems, [], documentKind);
         localStorage.removeItem(`invoice_draft_${documentKind}`);
         setShowModal(false);
         setForm(f => ({ ...f, editId: null }));
@@ -591,12 +601,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
           last_payment_mode: parseFloat(form.paid) > 0 ? form.paymentMode : null,
           warehouse_id: form.warehouseId || null,
           tax_mode: form.taxMode || 'exclusive',
-        }, validItems.map((i) => ({
-          product_id: i.product_id || null, name: i.name, hsn: i.hsn,
-          qty: parseFloat(i.qty), price: parseFloat(i.price), gst: parseFloat(i.gst) || 0,
-          unit: i.unit || 'Pcs', discount: parseFloat(i.discount) || 0,
-          amount: (parseFloat(i.qty) * parseFloat(i.price)) * (1 - (parseFloat(i.discount) || 0) / 100),
-        })));
+        }, mappedItems);
         localStorage.removeItem(`invoice_draft_${documentKind}`);
         setShowModal(false);
         setMessage(`\u2713 ${inv.invoice_no} created`);
