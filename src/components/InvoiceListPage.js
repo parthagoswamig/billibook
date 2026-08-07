@@ -432,7 +432,11 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
         state: newCustomer.state,
         type: partyType,
       });
-      setParties(pts => [...pts, added]);
+      setParties(pts => {
+        const updated = [...pts, added];
+        localStorage.setItem(`cached_parties_${tenantId}_${partyType}`, JSON.stringify(updated));
+        return updated;
+      });
       setForm(f => ({
         ...f,
         customerId: added.id,
@@ -440,6 +444,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
       }));
       setShowAddCustomer(false);
       setNewCustomer({ name: '', phone: '', gstin: '', address: '', state: '' });
+      toast.success(`✓ ${partyLabel} "${added.name}" added & selected!`);
     } catch (err) {
       setCustomerError(err.message || 'Failed to add Customer');
     } finally {
@@ -543,6 +548,9 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
     if (!tenantId || !canCreate('invoices')) return;
 
     try {
+      const cacheKey = `cached_invoices_${tenantId}_${cfg.type}_${documentKind}_${page}_${limit}_${search}`;
+      localStorage.removeItem(cacheKey);
+
       if (form.editId) {
         // UPDATE existing invoice
         await updateInvoice(form.editId, tenantId, {
@@ -566,7 +574,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
         setForm(f => ({ ...f, editId: null }));
         setMessage(`✓ ${form.invoiceNo} updated`);
         setTimeout(() => setMessage(''), 3000);
-        load();
+        await load();
       } else {
         // CREATE new invoice
         const inv = await saveInvoice(tenantId, {
@@ -589,7 +597,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
         setShowModal(false);
         setMessage(`\u2713 ${inv.invoice_no} created`);
         setTimeout(() => setMessage(''), 3000);
-        load();
+        await load();
         if (shouldPrint) {
           navigate(`${cfg.route}/${inv.id}`, { state: { autoPrint: true } });
         }
