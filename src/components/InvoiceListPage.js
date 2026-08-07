@@ -844,9 +844,9 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
                 <div className="section-header-row" style={{ flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
                   <h4>Items & Description</h4>
 
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', background: '#F8FAFC', padding: '6px 14px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', background: '#F8FAFC', padding: '6px 14px', borderRadius: '10px', border: '1px solid #E2E8F0', flexWrap: 'wrap' }}>
                     <span style={{ fontWeight: '700', fontSize: '12px', color: '#475569' }}>Tax Pricing:</span>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '12px', fontWeight: (form.taxMode || 'exclusive') === 'exclusive' ? '700' : '500', color: (form.taxMode || 'exclusive') === 'exclusive' ? '#4F46E5' : '#64748B' }}>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: (form.taxMode || 'exclusive') === 'exclusive' ? '700' : '500', color: (form.taxMode || 'exclusive') === 'exclusive' ? '#4F46E5' : '#64748B' }}>
                       <input 
                         type="radio" 
                         name="taxMode" 
@@ -854,9 +854,9 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
                         checked={(form.taxMode || 'exclusive') === 'exclusive'} 
                         onChange={() => setForm({ ...form, taxMode: 'exclusive' })} 
                       />
-                      <span>Exclusive (GST Extra)</span>
+                      <span>GST Extra (Exclusive)</span>
                     </label>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '12px', fontWeight: form.taxMode === 'inclusive' ? '700' : '500', color: form.taxMode === 'inclusive' ? '#10B981' : '#64748B' }}>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: form.taxMode === 'inclusive' ? '700' : '500', color: form.taxMode === 'inclusive' ? '#10B981' : '#64748B' }}>
                       <input 
                         type="radio" 
                         name="taxMode" 
@@ -864,7 +864,17 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
                         checked={form.taxMode === 'inclusive'} 
                         onChange={() => setForm({ ...form, taxMode: 'inclusive' })} 
                       />
-                      <span>Inclusive (GST Included)</span>
+                      <span>GST Included (Inclusive)</span>
+                    </label>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: form.taxMode === 'none' ? '700' : '500', color: form.taxMode === 'none' ? '#EF4444' : '#64748B' }}>
+                      <input 
+                        type="radio" 
+                        name="taxMode" 
+                        value="none" 
+                        checked={form.taxMode === 'none'} 
+                        onChange={() => setForm({ ...form, taxMode: 'none' })} 
+                      />
+                      <span>Without GST (No Tax)</span>
                     </label>
                   </div>
 
@@ -886,10 +896,10 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
                         <th style={{ width: '8%' }}>HSN</th>
                         <th style={{ width: '8%' }}>Qty</th>
                         <th style={{ width: '9%' }}>Unit</th>
-                        <th style={{ width: '10%' }}>{form.taxMode === 'inclusive' ? 'Price (Incl.)' : 'Price/Unit'}</th>
+                        <th style={{ width: '10%' }}>{form.taxMode === 'inclusive' ? 'Price (Incl.)' : form.taxMode === 'none' ? 'Price' : 'Price/Unit'}</th>
                         <th style={{ width: '8%' }}>Disc %</th>
-                        <th style={{ width: '8%' }}>{profile?.tax_label || 'GST'} %</th>
-                        <th style={{ width: '11%' }}>Taxable</th>
+                        <th style={{ width: '8%' }}>{form.taxMode === 'none' ? 'Tax' : `${profile?.tax_label || 'GST'} %`}</th>
+                        <th style={{ width: '11%' }}>{form.taxMode === 'none' ? 'Amount' : 'Taxable'}</th>
                         <th style={{ width: '11%' }}>Total</th>
                         <th style={{ width: '2%' }}></th>
                       </tr>
@@ -899,13 +909,19 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
                         const qty = parseFloat(item.qty) || 0;
                         const price = parseFloat(item.price) || 0;
                         const itemDisc = parseFloat(item.discount) || 0;
-                        const gstRate = parseFloat(item.gst) || 0;
+                        const gstRate = form.taxMode === 'none' ? 0 : (parseFloat(item.gst) || 0);
                         
                         let taxable = 0;
                         let rowGst = 0;
                         let netRowAmount = 0;
 
-                        if (form.taxMode === 'inclusive' && gstRate > 0) {
+                        if (form.taxMode === 'none') {
+                          const base = qty * price;
+                          const discAmt = base * (itemDisc / 100);
+                          taxable = base - discAmt;
+                          rowGst = 0;
+                          netRowAmount = taxable;
+                        } else if (form.taxMode === 'inclusive' && gstRate > 0) {
                           const gross = qty * price;
                           const discAmt = gross * (itemDisc / 100);
                           const netInc = gross - discAmt;

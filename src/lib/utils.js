@@ -28,10 +28,16 @@ export function calcInvoiceTotals(items, discount = 0, roundOff = 0, shippingCha
   for (const item of items) {
     const qty = parseFloat(item.qty) || 0;
     const price = parseFloat(item.price) || 0;
-    const gst = parseFloat(item.gst) || 0;
+    const gst = taxMode === 'none' ? 0 : (parseFloat(item.gst) || 0);
     const itemDiscountPercent = parseFloat(item.discount) || 0;
 
-    if (taxMode === 'inclusive' && gst > 0) {
+    if (taxMode === 'none') {
+      const base = qty * price;
+      const itemDiscountAmount = base * (itemDiscountPercent / 100);
+      const taxable = base - itemDiscountAmount;
+      subtotal += taxable;
+      gstAmount += 0;
+    } else if (taxMode === 'inclusive' && gst > 0) {
       const gross = qty * price;
       const discAmt = gross * (itemDiscountPercent / 100);
       const netInc = gross - discAmt;

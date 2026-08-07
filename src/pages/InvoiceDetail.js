@@ -246,8 +246,11 @@ function InvoiceDetail() {
                   {profile?.email && <p className="business-detail"><strong>Email:</strong> {profile.email}</p>}
                 </div>
               </div>
-              <div className="invoice-meta-box">
-                <h2 className="tax-invoice-title">{cfg.label?.toUpperCase() || 'TAX INVOICE'}</h2>
+                <h2 className="tax-invoice-title">
+                  {invoice.tax_mode === 'none' || (parseFloat(invoice.gst_amount) === 0 && invoice.tax_mode !== 'inclusive')
+                    ? (invoice.type === 'purchase' ? 'PURCHASE BILL' : 'BILL OF SUPPLY / INVOICE')
+                    : (cfg.label?.toUpperCase() || 'TAX INVOICE')}
+                </h2>
                 <div className="meta-grid">
                   <span className="meta-label">Invoice No:</span>
                   <span className="meta-value"><strong>{invoice.invoice_no}</strong></span>
@@ -304,15 +307,23 @@ function InvoiceDetail() {
                     const qty = parseFloat(item.qty) || 0;
                     const price = parseFloat(item.price) || 0;
                     const itemDisc = parseFloat(item.discount) || 0;
-                    const gstRate = parseFloat(item.gst) || 0;
+                    const isNone = invoice.tax_mode === 'none';
                     const isInc = invoice.tax_mode === 'inclusive';
+                    const gstRate = isNone ? 0 : (parseFloat(item.gst) || 0);
 
                     let taxable = 0;
                     let rowGst = 0;
                     let netRowAmount = 0;
                     let displayRate = price;
 
-                    if (isInc && gstRate > 0) {
+                    if (isNone) {
+                      const base = qty * price;
+                      const discAmt = base * (itemDisc / 100);
+                      taxable = base - discAmt;
+                      rowGst = 0;
+                      netRowAmount = taxable;
+                      displayRate = price;
+                    } else if (isInc && gstRate > 0) {
                       const gross = qty * price;
                       const discAmt = gross * (itemDisc / 100);
                       const netInc = gross - discAmt;
@@ -337,7 +348,7 @@ function InvoiceDetail() {
                         <td style={{ textAlign: 'right' }}>{item.qty} {item.unit || 'Pcs'}</td>
                         <td style={{ textAlign: 'right' }}>{fmt(displayRate)}</td>
                         <td style={{ textAlign: 'right' }}>{item.discount > 0 ? `${item.discount}%` : '—'}</td>
-                        <td style={{ textAlign: 'right' }}>{item.gst}%</td>
+                        <td style={{ textAlign: 'right' }}>{isNone || item.gst === 0 ? '—' : `${item.gst}%`}</td>
                         <td style={{ textAlign: 'right', fontWeight: '600' }}>{fmt(netRowAmount)}</td>
                       </tr>
                     );
