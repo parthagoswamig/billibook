@@ -11,7 +11,8 @@ import {
   bulkImportProducts,
   getProductCategories,
   createProductCategory,
-  deleteProductCategory
+  deleteProductCategory,
+  invalidateDashboardCache
 } from '../lib/db';
 import { useBusiness } from '../lib/BusinessContext';
 import { useRole } from '../lib/RoleContext';
@@ -155,6 +156,7 @@ function Products() {
       } else {
         await addProduct(tenantId, payload);
       }
+      invalidateDashboardCache(tenantId);
       setShowModal(false);
       setForm({ 
         name: '', hsn: '', gst: 18, stock: 0, sale_price: '', purchase_price: '', 
@@ -174,6 +176,7 @@ function Products() {
     if (!window.confirm(`Delete "${name}"?`)) return;
     try {
       await deleteProduct(id);
+      invalidateDashboardCache(tenantId);
       load();
     } catch (err) {
       setError(err.message);

@@ -2,7 +2,7 @@
 import { supabase } from './supabase';
 import { addDays, generateInvoiceNumber } from './utils';
 
-// Local cache invalidation helper for dashboard stats
+// Local cache invalidation helper for dashboard stats & entity caches
 export function invalidateDashboardCache(tenantId) {
   if (!tenantId) return;
   const ranges = ['today', 'week', 'month', 'quarter', 'year'];
@@ -13,6 +13,23 @@ export function invalidateDashboardCache(tenantId) {
       console.warn('Failed to clear dashboard cache:', e);
     }
   });
+
+  try {
+    localStorage.removeItem(`cached_parties_${tenantId}_customer`);
+    localStorage.removeItem(`cached_parties_${tenantId}_supplier`);
+    localStorage.removeItem(`cached_products_${tenantId}`);
+    localStorage.removeItem(`cached_warehouses_${tenantId}`);
+    
+    if (typeof localStorage !== 'undefined') {
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith(`cached_invoices_${tenantId}_`)) {
+          localStorage.removeItem(key);
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('Failed to clear local entity caches:', e);
+  }
 }
 
 const ENTITY_MODULE_MAP = {

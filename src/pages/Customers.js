@@ -6,7 +6,7 @@ import Pagination from '../components/Pagination';
 import { useUser } from '../lib/useUser';
 import { useBusiness } from '../lib/BusinessContext';
 import { useRole } from '../lib/RoleContext';
-import { getParties, addParty, updateParty, deleteParty, getPartyStats, bulkImportParties } from '../lib/db';
+import { getParties, addParty, updateParty, deleteParty, getPartyStats, bulkImportParties, invalidateDashboardCache } from '../lib/db';
 import { formatCurrency, exportToCSV, importFromCSV } from '../lib/utils';
 
 function Customers() {
@@ -108,6 +108,7 @@ function Customers() {
     try {
       if (editId) await updateParty(editId, { ...form, type: tab });
       else await addParty(tenantId, { ...form, type: tab });
+      invalidateDashboardCache(tenantId);
       setShowModal(false);
       setMessage(editId ? '✓ Updated' : '✓ Added');
       setTimeout(() => setMessage(''), 3000);
@@ -124,6 +125,7 @@ function Customers() {
         return;
       }
       await bulkImportParties(tenantId, data, tab);
+      invalidateDashboardCache(tenantId);
       setMessage(`✓ Imported ${data.length} ${tab}s`);
       setTimeout(() => setMessage(''), 3000);
       load();
@@ -166,7 +168,7 @@ function Customers() {
                   <div className="row-actions">
                     <button className="action-button" type="button" onClick={() => navigate(`/ledger/${p.id}`)}>Ledger</button>
                     {canEdit('customers') && <button className="action-button" type="button" onClick={() => openEdit(p)}>Edit</button>}
-                    {canDelete('customers') && <button className="action-button danger-btn" type="button" onClick={async () => { if (window.confirm('Delete?')) { await deleteParty(p.id); load(); } }}>Delete</button>}
+                    {canDelete('customers') && <button className="action-button danger-btn" type="button" onClick={async () => { if (window.confirm('Delete?')) { await deleteParty(p.id); invalidateDashboardCache(tenantId); load(); } }}>Delete</button>}
                   </div>
                 </div>
               ))}
