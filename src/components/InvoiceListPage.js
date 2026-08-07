@@ -48,6 +48,14 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
     try {
       let currentParties = await getParties(tenantId);
       
+      // Instantly inject newly scanned/created customer into state & localStorage cache
+      if (scannedData.customer && !currentParties.some(p => p.id === scannedData.customer.id)) {
+        currentParties = [...currentParties, scannedData.customer];
+        try {
+          localStorage.setItem(`cached_parties_${tenantId}_customer`, JSON.stringify(currentParties));
+        } catch (e) {}
+      }
+
       // Fail-safe: If no parties exist in tenant database, auto-create default Cash Sale party
       if (!currentParties || currentParties.length === 0) {
         try {
@@ -58,7 +66,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
 
       setParties(currentParties || []);
 
-      let targetCustId = scannedData.customerId || currentParties?.[0]?.id || '';
+      let targetCustId = scannedData.customerId || scannedData.customer?.id || currentParties?.[0]?.id || '';
       const businessProf = await getProfile(tenantId);
       const nextNo = await getNextInvoiceNo(tenantId, cfg.type, documentKind);
       const selectedParty = (currentParties || []).find(p => p.id === targetCustId) || currentParties?.[0];

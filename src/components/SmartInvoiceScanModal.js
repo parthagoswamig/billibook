@@ -105,7 +105,10 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
 
       // Customer Name Detection
       if (!customerName) {
-        if (lower.includes('customer name') || lower.includes('customer') || lower.includes('bill to') || lower.includes('party name') || lower.includes('party:')) {
+        const custMatch = line.match(/(customer name|customer|bill to|party name|party|name)[\:\s\-]+([a-zA-Z\s\.]+)/i);
+        if (custMatch && custMatch[2] && custMatch[2].trim().length > 2) {
+          customerName = custMatch[2].trim();
+        } else if (lower.includes('customer name') || lower.includes('customer') || lower.includes('bill to') || lower.includes('party name')) {
           const cleaned = line.replace(/customer name|customer|bill to|party name|party|name|to:/gi, '').replace(/[:\-]/g, '').trim();
           if (cleaned.length > 2) customerName = cleaned;
         }
@@ -356,6 +359,7 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
 
       // Auto Customer Lookup / Creation (Always ensures a valid Customer ID)
       let targetCustomerId = '';
+      let targetCustomerObj = null;
       const custNameToUse = parsedData.customerName || 'Cash / Walk-in Customer';
       
       const existingCust = (parties || []).find(p => 
@@ -365,6 +369,7 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
 
       if (existingCust) {
         targetCustomerId = existingCust.id;
+        targetCustomerObj = existingCust;
         toast.success(`✓ Linked party: ${existingCust.name}`);
       } else {
         try {
@@ -376,17 +381,20 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
             type: 'customer'
           });
           targetCustomerId = newCust?.id || '';
+          targetCustomerObj = newCust;
           invalidateDashboardCache(tenantId);
           toast.success(`🎉 Auto-created Customer: ${newCust.name}`);
         } catch (err) {
           console.error("Failed to auto-create customer:", err);
           targetCustomerId = parties?.[0]?.id || '';
+          targetCustomerObj = parties?.[0];
         }
       }
 
       if (onScanComplete) {
         onScanComplete({
           customerId: targetCustomerId || '',
+          customer: targetCustomerObj,
           customerName: parsedData.customerName || '',
           taxMode: parsedData.taxMode || 'none',
           items: parsedData.items.length > 0 ? parsedData.items : [{ name: 'Scanned Item', qty: 1, price: 100, gst: 0, unit: 'Pcs' }]
