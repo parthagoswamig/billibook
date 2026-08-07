@@ -269,11 +269,26 @@ export default function SmartProductScanModal({ isOpen, onClose, tenantId, onImp
         
         let pdfTextLines = [];
         for (let i = 1; i <= pdf.numPages; i++) {
-          setProgress(Math.round((i / pdf.numPages) * 60));
-          setStatusText(`📄 Reading PDF Page ${i} of ${pdf.numPages}...`);
+          setProgress(Math.round((i / pdf.numPages) * 50));
+          setStatusText(`📄 Processing PDF Page ${i} of ${pdf.numPages}...`);
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
-          const pageText = textContent.items.map(item => item.str).join(' ');
+          let pageText = textContent.items.map(item => item.str).join(' ');
+
+          // Fallback: If PDF page has no embedded text (Scanned PDF photo), render page to canvas & run OCR!
+          if (!pageText || pageText.trim().length < 10) {
+            setStatusText(`🔍 Running Image OCR on PDF Page ${i}...`);
+            const viewport = page.getViewport({ scale: 2.0 });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            const ctx = canvas.getContext('2d');
+            await page.render({ canvasContext: ctx, viewport }).promise;
+
+            const ocrResult = await Tesseract.recognize(canvas, 'eng');
+            pageText = ocrResult.data.text;
+          }
+
           pdfTextLines.push(pageText);
         }
         extractedText = pdfTextLines.join('\n');
