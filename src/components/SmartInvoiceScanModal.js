@@ -160,12 +160,12 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
     lines.forEach((line) => {
       const lower = line.toLowerCase();
 
-      // STRICT METADATA EXCLUSION FILTER: Skip header & footer lines from item list
+      // STRICT METADATA EXCLUSION FILTER
       const isMetadataLine = (
         lower.includes('bill no') || lower.includes('invoice no') || lower.includes('inv no') || lower.includes('inv-') ||
         lower.includes('date') || lower.includes('phone') || lower.includes('mobile') ||
         lower.includes('gstin') || lower.includes('customer') || lower.includes('bill to') ||
-        lower.includes('party') || lower.includes('grand total') || lower.includes('subtotal') ||
+        lower.includes('party') || lower.includes('grand total') || lower.includes('subtotal') || lower.includes('total') ||
         lower.includes('total amount') || lower.includes('cash memo') || lower.includes('bill pad') ||
         lower.includes('sample paper') || lower.includes('retail cash memo') || lower.includes('thank you') ||
         lower.includes('rates subject') || lower.includes('visit again') || lower.startsWith('sl') ||
@@ -200,29 +200,32 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
         else unit = 'Pcs';
       }
 
-      // Extract Qty and Price
+      // Extract Qty and Price accurately
       const parsedNums = numbers.map(n => parseFloat(n)).filter(n => !isNaN(n));
-      let price = 0;
-      let qty = 1;
+      const price = parsedNums[parsedNums.length - 1]; // Price is the last number
 
+      let qty = 1;
       if (parsedNums.length >= 2) {
-        // e.g. "Asian Paints 2 920.00" -> qty = 2, price = 920.00
-        const possibleQty = parsedNums[0];
-        if (possibleQty > 0 && possibleQty <= 500) {
-          qty = possibleQty;
+        const candidateQty = parsedNums[parsedNums.length - 2]; // Qty is integer before price
+        if (Number.isInteger(candidateQty) && candidateQty > 0 && candidateQty <= 500) {
+          qty = candidateQty;
         }
-        price = parsedNums[parsedNums.length - 1];
-      } else if (parsedNums.length === 1) {
-        price = parsedNums[0];
       }
 
-      // Sanity Check: Price must be between 1 and 500,000 (skip phone numbers or year 2026)
+      // Sanity Check: Price must be between 1 and 500,000
       if (price <= 0 || price > 500000) return;
 
-      // Isolate Product Name
+      // Isolate Product Name & remove price/qty from end of name
       let namePart = line
         .replace(/₹|Rs\.|INR/gi, '')
-        .replace(/\b\d+(\.\d+)?\s*$/, '')
+        .replace(/\b\d+(\.\d+)?\s*$/, '') // remove price at end
+        .trim();
+
+      if (parsedNums.length >= 2) {
+        namePart = namePart.replace(/\b\d+\s*$/, '').trim(); // remove qty at end
+      }
+
+      namePart = namePart
         .replace(/\b\d{4,8}\b/g, '')
         .replace(/\b(pcs|ltr|kg|can|drum|bucket|box|set|pkt|roll|mtr|gm|ml|btl|nos|bag)\b/gi, '')
         .replace(/[^\w\s\-\.\(\)]/gi, ' ')
@@ -335,7 +338,6 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
           targetCustomerId = existingCust.id;
           toast.success(`✓ Linked existing party: ${existingCust.name}`);
         } else {
-          // Auto create customer!
           try {
             const newCust = await addParty(tenantId, {
               name: parsedData.customerName || 'Paper Bill Customer',

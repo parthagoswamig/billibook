@@ -71,10 +71,14 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
         taxMode: 'exclusive',
         items: scannedData.items || [{ product_id: '', name: '', hsn: '', qty: 1, unit: 'Pcs', price: 100, discount: 0, gst: 18 }]
       });
-      if (targetCustId) {
-        handleCustomerChange(targetCustId);
-      }
       setShowModal(true);
+
+      if (targetCustId && selectedParty?.credit_limit > 0) {
+        try {
+          const { data: outstanding } = await supabase.rpc('get_customer_outstanding', { customer_uuid: targetCustId });
+          setSelectedPartyOutstanding(parseFloat(outstanding) || 0);
+        } catch (e) {}
+      }
     } catch (err) {
       console.error("Failed to populate invoice form:", err);
     }
