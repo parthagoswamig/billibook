@@ -46,13 +46,23 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
 
   const handleBillScanComplete = async (scannedData) => {
     try {
-      const currentParties = await getParties(tenantId);
+      let currentParties = await getParties(tenantId);
+      
+      // Fail-safe: If no parties exist in tenant database, auto-create default Cash Sale party
+      if (!currentParties || currentParties.length === 0) {
+        try {
+          const defaultParty = await addParty(tenantId, { name: 'Cash / Walk-in Customer', type: 'customer' });
+          currentParties = [defaultParty];
+        } catch (e) {}
+      }
+
       setParties(currentParties || []);
 
-      const targetCustId = scannedData.customerId || currentParties?.[0]?.id || '';
+      let targetCustId = scannedData.customerId || currentParties?.[0]?.id || '';
       const businessProf = await getProfile(tenantId);
       const nextNo = await getNextInvoiceNo(tenantId, cfg.type, documentKind);
-      const selectedParty = (currentParties || []).find(p => p.id === targetCustId);
+      const selectedParty = (currentParties || []).find(p => p.id === targetCustId) || currentParties?.[0];
+      if (selectedParty) targetCustId = selectedParty.id;
       
       setForm({
         invoiceNo: nextNo,

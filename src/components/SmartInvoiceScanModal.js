@@ -354,32 +354,33 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
       const parsedData = parseBillDocument(extractedText);
       setProgress(100);
 
-      // Auto Customer Lookup / Creation
+      // Auto Customer Lookup / Creation (Always ensures a valid Customer ID)
       let targetCustomerId = '';
-      if (parsedData.customerName) {
-        const existingCust = (parties || []).find(p => 
-          p.name.toLowerCase().trim() === parsedData.customerName.toLowerCase().trim() ||
-          (parsedData.customerPhone && p.phone === parsedData.customerPhone)
-        );
+      const custNameToUse = parsedData.customerName || 'Cash / Walk-in Customer';
+      
+      const existingCust = (parties || []).find(p => 
+        p.name.toLowerCase().trim() === custNameToUse.toLowerCase().trim() ||
+        (parsedData.customerPhone && p.phone === parsedData.customerPhone)
+      );
 
-        if (existingCust) {
-          targetCustomerId = existingCust.id;
-          toast.success(`✓ Linked existing party: ${existingCust.name}`);
-        } else {
-          try {
-            const newCust = await addParty(tenantId, {
-              name: parsedData.customerName || 'Paper Bill Customer',
-              phone: parsedData.customerPhone || '',
-              gstin: parsedData.customerGstin || '',
-              address: parsedData.customerAddress || '',
-              type: 'customer'
-            });
-            targetCustomerId = newCust.id;
-            invalidateDashboardCache(tenantId);
-            toast.success(`🎉 Auto-created new Customer: ${newCust.name}`);
-          } catch (err) {
-            console.error("Failed to auto-create customer:", err);
-          }
+      if (existingCust) {
+        targetCustomerId = existingCust.id;
+        toast.success(`✓ Linked party: ${existingCust.name}`);
+      } else {
+        try {
+          const newCust = await addParty(tenantId, {
+            name: custNameToUse,
+            phone: parsedData.customerPhone || '',
+            gstin: parsedData.customerGstin || '',
+            address: parsedData.customerAddress || '',
+            type: 'customer'
+          });
+          targetCustomerId = newCust?.id || '';
+          invalidateDashboardCache(tenantId);
+          toast.success(`🎉 Auto-created Customer: ${newCust.name}`);
+        } catch (err) {
+          console.error("Failed to auto-create customer:", err);
+          targetCustomerId = parties?.[0]?.id || '';
         }
       }
 
