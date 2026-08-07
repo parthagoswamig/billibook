@@ -14,7 +14,8 @@
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.17.0",
     "react-scripts": "5.0.1",
-    "recharts": "^3.9.2"
+    "recharts": "^3.9.2",
+    "tesseract.js": "^7.0.0"
   },
   "scripts": {
     "start": "react-scripts start",

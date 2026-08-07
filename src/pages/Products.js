@@ -18,6 +18,7 @@ import { useBusiness } from '../lib/BusinessContext';
 import { useRole } from '../lib/RoleContext';
 import { formatCurrency, exportToCSV, importFromCSV } from '../lib/utils';
 import BarcodeQRGenerator from '../components/BarcodeQRGenerator';
+import SmartProductScanModal from '../components/SmartProductScanModal';
 
 const STANDARD_UQCS = [
   { code: 'PCS', label: 'PCS - PIECES' },
@@ -70,6 +71,7 @@ function Products() {
     description: '', sku: '', barcode: '', category_id: '' 
   });
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [generatorType, setGeneratorType] = useState('qr');
 
@@ -217,6 +219,16 @@ function Products() {
         title="Products & Inventory"
         actions={
           <>
+            {canCreate('products') && (
+              <button 
+                className="secondary-button" 
+                type="button" 
+                onClick={() => setShowScanModal(true)}
+                style={{ background: '#EEF2FF', color: '#4F46E5', borderColor: '#C7D2FE', fontWeight: '600' }}
+              >
+                📷 AI Photo/PDF Scan
+              </button>
+            )}
             {canCreate('products') && <button className="secondary-button" type="button" onClick={handleImport}>📤 Import CSV</button>}
             <button className="secondary-button" type="button" onClick={handleExport}>📥 Export CSV</button>
             {canCreate('products') && (
@@ -683,6 +695,14 @@ function Products() {
             />
           </div>
         </div>
+      )}
+      {showScanModal && (
+        <SmartProductScanModal 
+          isOpen={showScanModal}
+          onClose={() => setShowScanModal(false)}
+          tenantId={tenantId}
+          onImportSuccess={load}
+        />
       )}
     </>
   );
