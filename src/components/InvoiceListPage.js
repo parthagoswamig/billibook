@@ -248,29 +248,38 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
         
         let currentParties = parties;
         let currentWarehouses = warehouses;
-        if (currentParties.length === 0 || currentWarehouses.length === 0) {
-          try {
-            const [pts, whs] = await Promise.all([
-              getParties(tenantId, partyType),
-              getWarehouses(tenantId)
-            ]);
-            currentParties = pts;
-            currentWarehouses = whs || [];
-            setParties(pts);
+        let currentProducts = products;
+
+        try {
+          const [pts, whs, prods] = await Promise.all([
+            getParties(tenantId, partyType),
+            getWarehouses(tenantId),
+            getProducts(tenantId)
+          ]);
+          currentParties = pts;
+          currentWarehouses = whs || [];
+          currentProducts = prods || [];
+          setParties(pts);
+          setWarehouses(currentWarehouses);
+          setProducts(currentProducts);
+          localStorage.setItem(`cached_parties_${tenantId}_${partyType}`, JSON.stringify(pts));
+          localStorage.setItem(`cached_warehouses_${tenantId}`, JSON.stringify(currentWarehouses));
+          localStorage.setItem(`cached_products_${tenantId}`, JSON.stringify(currentProducts));
+        } catch(e) {
+          const cachedP = localStorage.getItem(`cached_parties_${tenantId}_${partyType}`);
+          const cachedW = localStorage.getItem(`cached_warehouses_${tenantId}`);
+          const cachedPr = localStorage.getItem(`cached_products_${tenantId}`);
+          if (cachedP) {
+            currentParties = JSON.parse(cachedP);
+            setParties(currentParties);
+          }
+          if (cachedW) {
+            currentWarehouses = JSON.parse(cachedW);
             setWarehouses(currentWarehouses);
-            localStorage.setItem(`cached_parties_${tenantId}_${partyType}`, JSON.stringify(pts));
-            localStorage.setItem(`cached_warehouses_${tenantId}`, JSON.stringify(currentWarehouses));
-          } catch(e) {
-            const cachedP = localStorage.getItem(`cached_parties_${tenantId}_${partyType}`);
-            const cachedW = localStorage.getItem(`cached_warehouses_${tenantId}`);
-            if (cachedP) {
-              currentParties = JSON.parse(cachedP);
-              setParties(currentParties);
-            }
-            if (cachedW) {
-              currentWarehouses = JSON.parse(cachedW);
-              setWarehouses(currentWarehouses);
-            }
+          }
+          if (cachedPr) {
+            currentProducts = JSON.parse(cachedPr);
+            setProducts(currentProducts);
           }
         }
         
@@ -346,6 +355,10 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
 
   const openCreate = async () => {
     if (!tenantId) return;
+    try {
+      const prods = await getProducts(tenantId);
+      if (prods) setProducts(prods);
+    } catch(e) {}
     const businessProf = await getProfile(tenantId);
     const dueDays = businessProf?.default_due_days ?? 7;
     const nextNo = await getNextInvoiceNo(tenantId, cfg.type, documentKind);
