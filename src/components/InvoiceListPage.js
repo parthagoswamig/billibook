@@ -547,6 +547,28 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
     const finalTotal = rawT.total + rOff;
     const balanceVal = finalTotal - parseFloat(form.paid || 0);
 
+    const getItemRowAmount = (i) => {
+      const qty = parseFloat(i.qty) || 0;
+      const price = parseFloat(i.price) || 0;
+      const disc = parseFloat(i.discount) || 0;
+      const gst = form.taxMode === 'none' ? 0 : (parseFloat(i.gst) || 0);
+
+      if (form.taxMode === 'none' || form.taxMode === 'inclusive') {
+        return (qty * price) * (1 - disc / 100);
+      } else {
+        const taxable = (qty * price) * (1 - disc / 100);
+        return taxable + taxable * (gst / 100);
+      }
+    };
+
+    const mappedItems = validItems.map((i) => ({
+      product_id: i.product_id || null, name: i.name, hsn: i.hsn,
+      qty: parseFloat(i.qty), price: parseFloat(i.price),
+      gst: form.taxMode === 'none' ? 0 : (parseFloat(i.gst) || 0),
+      unit: i.unit || 'Pcs', discount: parseFloat(i.discount) || 0,
+      amount: getItemRowAmount(i),
+    }));
+
     const cust = parties.find(p => p.id === form.customerId);
     if (cust && cust.credit_limit > 0) {
       const projected = selectedPartyOutstanding + finalTotal - parseFloat(form.paid || 0);
@@ -580,28 +602,6 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
         warehouse_id: form.warehouseId || null,
         notes: form.notes ? form.notes : 'Created Offline',
       };
-
-      const getItemRowAmount = (i) => {
-        const qty = parseFloat(i.qty) || 0;
-        const price = parseFloat(i.price) || 0;
-        const disc = parseFloat(i.discount) || 0;
-        const gst = form.taxMode === 'none' ? 0 : (parseFloat(i.gst) || 0);
-
-        if (form.taxMode === 'none' || form.taxMode === 'inclusive') {
-          return (qty * price) * (1 - disc / 100);
-        } else {
-          const taxable = (qty * price) * (1 - disc / 100);
-          return taxable + taxable * (gst / 100);
-        }
-      };
-
-      const mappedItems = validItems.map((i) => ({
-        product_id: i.product_id || null, name: i.name, hsn: i.hsn,
-        qty: parseFloat(i.qty), price: parseFloat(i.price),
-        gst: form.taxMode === 'none' ? 0 : (parseFloat(i.gst) || 0),
-        unit: i.unit || 'Pcs', discount: parseFloat(i.discount) || 0,
-        amount: getItemRowAmount(i),
-      }));
 
       const newOfflineInvoice = {
         id: tempId,
