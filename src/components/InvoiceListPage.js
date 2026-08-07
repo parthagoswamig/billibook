@@ -21,7 +21,7 @@ const INDIAN_STATES = [
   "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal"
 ];
 
-const UNITS = ['Pcs', 'Box', 'Kg', 'Ltr', 'Mtr', 'Bag', 'Doz', 'Pack', 'Set', 'Ton', 'Exempt'];
+const UNITS = ['Pcs', 'Nos', 'Box', 'Kg', 'Gm', 'Ltr', 'Ml', 'Can', 'Drum', 'Bucket', 'Mtr', 'Bag', 'Doz', 'Pack', 'Set', 'Sqft', 'Ft', 'Btl', 'Pkt', 'Roll', 'Ton', 'Exempt'];
 
 function InvoiceListPage({ documentKind = 'sale_invoice' }) {
   const cfg = DOCUMENT_KINDS[documentKind] || DOCUMENT_KINDS.sale_invoice;
@@ -863,7 +863,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 <input 
                                   className="spreadsheet-input" 
-                                  placeholder="Type name or HSN to search..." 
+                                  placeholder="Product name, shade code, batch or IMEI..." 
                                   value={item.name} 
                                   onFocus={() => {
                                     setActiveSearchIdx(idx);

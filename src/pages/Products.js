@@ -23,8 +23,22 @@ const STANDARD_UQCS = [
   { code: 'NOS', label: 'NOS - NUMBERS' },
   { code: 'BOX', label: 'BOX - BOX' },
   { code: 'KGS', label: 'KGS - KILOGRAMS' },
+  { code: 'GMS', label: 'GMS - GRAMS' },
   { code: 'LTR', label: 'LTR - LITRES' },
-  { code: 'MTR', label: 'MTR - METRES' }
+  { code: 'MLT', label: 'MLT - MILLILITRES' },
+  { code: 'CAN', label: 'CAN - CANS' },
+  { code: 'DRM', label: 'DRM - DRUMS' },
+  { code: 'BKT', label: 'BKT - BUCKETS' },
+  { code: 'MTR', label: 'MTR - METRES' },
+  { code: 'BAG', label: 'BAG - BAGS' },
+  { code: 'DOZ', label: 'DOZ - DOZEN' },
+  { code: 'PAC', label: 'PAC - PACKS' },
+  { code: 'SET', label: 'SET - SETS' },
+  { code: 'SQF', label: 'SQF - SQ FEET' },
+  { code: 'FT',  label: 'FT - FEET' },
+  { code: 'BTL', label: 'BTL - BOTTLES' },
+  { code: 'PKT', label: 'PKT - PACKETS' },
+  { code: 'ROLL', label: 'ROLL - ROLLS' }
 ];
 
 const GST_SLABS = [0, 5, 12, 18, 28];
