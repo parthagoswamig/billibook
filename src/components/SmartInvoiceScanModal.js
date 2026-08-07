@@ -156,19 +156,28 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
       }
     }
 
-    // Detect GST presence & GST rate in document
-    let hasGstMention = false;
+    // Detect GST presence & GST rate in document (requires explicit tax charge/percentage, NOT just GSTIN header)
+    let hasGstTaxCharge = false;
     let detectedGstRate = 0;
-    let taxMode = 'none'; // Default to Without GST (No Tax) unless GST is explicitly present in document!
+    let taxMode = 'none'; // Default to Without GST (No Tax) unless GST tax is explicitly charged on document!
 
     const fullTextLower = text.toLowerCase();
-    if (fullTextLower.includes('gst') || fullTextLower.includes('tax invoice') || fullTextLower.includes('cgst') || fullTextLower.includes('sgst') || fullTextLower.includes('igst')) {
-      hasGstMention = true;
-      taxMode = fullTextLower.includes('inclusive') ? 'inclusive' : 'exclusive';
 
-      const gstMatch = text.match(/gst\s*@?\s*(\d{1,2})%/i) || text.match(/(\d{1,2})%\s*gst/i) || text.match(/\b(18|12|5|28)%\b/);
-      if (gstMatch) {
-        detectedGstRate = parseInt(gstMatch[1]);
+    // Check for explicit GST tax rate or tax breakdown (NOT just GSTIN number)
+    const explicitGstMatch = text.match(/gst\s*@?\s*(\d{1,2})%/i) || 
+                             text.match(/(\d{1,2})%\s*gst/i) || 
+                             text.match(/cgst\s*@?\s*(\d{1,2})%/i) || 
+                             text.match(/sgst\s*@?\s*(\d{1,2})%/i) ||
+                             text.match(/igst\s*@?\s*(\d{1,2})%/i) ||
+                             text.match(/\b(cgst|sgst|igst)\b/i) ||
+                             fullTextLower.includes('tax amount') ||
+                             fullTextLower.includes('gst amount');
+
+    if (explicitGstMatch) {
+      hasGstTaxCharge = true;
+      taxMode = fullTextLower.includes('inclusive') ? 'inclusive' : 'exclusive';
+      if (explicitGstMatch[1]) {
+        detectedGstRate = parseInt(explicitGstMatch[1]);
       } else {
         detectedGstRate = 18;
       }
@@ -258,7 +267,7 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
           unit: unit,
           price: price,
           discount: 0,
-          gst: hasGstMention ? (detectedGstRate || 18) : 0
+          gst: hasGstTaxCharge ? (detectedGstRate || 18) : 0
         });
       }
     });
