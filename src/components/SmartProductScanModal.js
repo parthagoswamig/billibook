@@ -299,7 +299,27 @@ export default function SmartProductScanModal({ isOpen, onClose, tenantId, onImp
           setStatusText(`📄 Processing PDF Page ${i} of ${pdf.numPages}...`);
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
-          let pageText = textContent.items.map(item => item.str).join(' ');
+          let lastY = null;
+          let pageLines = [];
+          let currentLine = '';
+
+          for (const item of textContent.items) {
+            const y = item.transform ? Math.round(item.transform[5]) : null;
+            if (lastY !== null && y !== null && Math.abs(y - lastY) > 4) {
+              if (currentLine.trim()) pageLines.push(currentLine.trim());
+              currentLine = item.str;
+            } else {
+              currentLine += (currentLine ? ' ' : '') + item.str;
+            }
+            if (y !== null) lastY = y;
+            if (item.hasEOL) {
+              if (currentLine.trim()) pageLines.push(currentLine.trim());
+              currentLine = '';
+              lastY = null;
+            }
+          }
+          if (currentLine.trim()) pageLines.push(currentLine.trim());
+          let pageText = pageLines.join('\n');
 
           // Fallback: If PDF page has no embedded text (Scanned PDF photo), render page to canvas & run OCR!
           if (!pageText || pageText.trim().length < 10) {
