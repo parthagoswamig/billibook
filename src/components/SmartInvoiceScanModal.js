@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Tesseract from 'tesseract.js';
 import * as pdfjsLib from 'pdfjs-dist';
-import { addCustomer, invalidateDashboardCache } from '../lib/db';
+import { addParty, invalidateDashboardCache } from '../lib/db';
 import toast from 'react-hot-toast';
 
 // Configure pdfjs worker
@@ -312,7 +312,7 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
         } else {
           // Auto create customer!
           try {
-            const newCust = await addCustomer(tenantId, {
+            const newCust = await addParty(tenantId, {
               name: parsedData.customerName || 'Paper Bill Customer',
               phone: parsedData.customerPhone || '',
               gstin: parsedData.customerGstin || '',
