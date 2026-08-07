@@ -243,7 +243,7 @@ function InvoiceDetail() {
                   {profile?.address && <p className="business-detail">{profile.address}</p>}
                   {profile?.gstin && <p className="business-detail"><strong>GSTIN:</strong> {profile.gstin}</p>}
                   {profile?.phone && <p className="business-detail"><strong>Phone:</strong> {profile.phone}</p>}
-                  {profile?.email && <p className="business-detail"><strong>Email:</strong> {profile.email}</p>}
+                </div>
               </div>
               <div className="invoice-meta-box">
                 <h2 className="tax-invoice-title">
