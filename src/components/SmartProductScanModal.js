@@ -212,7 +212,7 @@ export default function SmartProductScanModal({ isOpen, onClose, tenantId, onImp
 
       const lower = line.toLowerCase();
       if (boilerplateWords.some(bp => lower.includes(bp))) return;
-      if (lower.startsWith('sl') || lower.startsWith('item') || lower.startsWith('particulars') || lower.startsWith('rate') || lower.startsWith('total')) return;
+      if (lower.startsWith('sl') || lower.startsWith('particulars') || lower.startsWith('total')) return;
 
       const numbers = line.match(/\d+(\.\d+)?/g);
       if (!numbers || numbers.length === 0) return;
@@ -244,6 +244,32 @@ export default function SmartProductScanModal({ isOpen, onClose, tenantId, onImp
         }
       }
     });
+
+    // --- PASS 3: Universal Fallback Extractor (Guarantees zero miss if document contains any text) ---
+    if (items.length === 0 && rawLines.length > 0) {
+      rawLines.forEach((line) => {
+        const clean = line.replace(/[^\w\s\-\.\(\)₹]/g, ' ').trim();
+        if (clean.length < 3) return;
+
+        const numbers = clean.match(/\d+(\.\d+)?/g);
+        const price = numbers ? parseFloat(numbers[numbers.length - 1]) : 0;
+        let namePart = clean.replace(/\d+(\.\d+)?/g, '').replace(/₹|Rs\.|INR/gi, '').trim();
+
+        if (namePart.length >= 2 || clean.length >= 3) {
+          items.push({
+            name: namePart.length >= 2 ? namePart : clean,
+            hsn: '',
+            sale_price: price || 0,
+            purchase_price: price ? Math.round(price * 0.8) : 0,
+            stock: 10,
+            unit: 'Pcs',
+            gst: 18,
+            category_id: selectedCatId || null
+          });
+          p2Count++;
+        }
+      });
+    }
 
     setScanStats({ pass1: p1Count, pass2: p2Count, total: items.length });
     return items;
