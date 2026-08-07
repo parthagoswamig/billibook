@@ -771,9 +771,17 @@ async function ensureAvailableInvoiceNo(userId, type, documentKind, requestedInv
   const tenantId = await getTenantId(userId);
   const ownerId = await getTenantOwnerId(tenantId);
   const kind = normalizeDocumentKind(type, documentKind);
-  const { data, error } = await supabase.from('invoices').select('invoice_no').eq('business_id', tenantId).eq('type', type).eq('document_kind', kind).eq('invoice_no', requestedInvoiceNo).maybeSingle();
+  const { data, error } = await supabase.from('invoices').select('invoice_no')
+    .or(`business_id.eq.${tenantId},user_id.eq.${ownerId}`)
+    .eq('type', type)
+    .eq('document_kind', kind)
+    .eq('invoice_no', requestedInvoiceNo)
+    .maybeSingle();
   if (error) throw error;
-  return data ? getNextInvoiceNo(tenantId, type, kind) : requestedInvoiceNo;
+  if (data) {
+    return await getNextInvoiceNo(tenantId, type, kind);
+  }
+  return requestedInvoiceNo;
 }
 export async function saveInvoice(userId, invoice, items) {
   const user = await verifyWritePermission('create', 'invoices');
@@ -821,11 +829,24 @@ export async function saveInvoice(userId, invoice, items) {
     discount: item.discount || 0,
   }));
 
-  const { data: inv, error: invErr } = await supabase.rpc('create_invoice_with_items', {
+  let { data: inv, error: invErr } = await supabase.rpc('create_invoice_with_items', {
     invoice_data: invoiceData,
     items_data: itemsData
   });
-  if (invErr) throw invErr;
+
+  // Fail-safe: Auto-resolve duplicate invoice number conflict and retry seamlessly
+  if (invErr && (invErr.code === '23505' || invErr.message?.includes('duplicate key') || invErr.message?.includes('invoices_user_type_document_kind_invoice_no_key'))) {
+    const freshInvoiceNo = await getNextInvoiceNo(tenantId, invoice.type, documentKind);
+    invoiceData.invoice_no = freshInvoiceNo;
+    const retryRes = await supabase.rpc('create_invoice_with_items', {
+      invoice_data: invoiceData,
+      items_data: itemsData
+    });
+    if (retryRes.error) throw retryRes.error;
+    inv = retryRes.data;
+  } else if (invErr) {
+    throw invErr;
+  }
 
   await supabase.from('audit_logs').insert([{
     user_id: user.id,
@@ -954,10 +975,13 @@ export async function getNextInvoiceNo(userId, type, documentKind) {
   const ownerId = await getTenantOwnerId(tenantId);
   const kind = normalizeDocumentKind(type, documentKind);
   const prefix = await getInvoicePrefix(tenantId, type, kind);
-  const { data, error } = await supabase.from('invoices').select('invoice_no').eq('business_id', tenantId).eq('type', type).eq('document_kind', kind);
+  const { data, error } = await supabase.from('invoices').select('invoice_no')
+    .or(`business_id.eq.${tenantId},user_id.eq.${ownerId}`)
+    .eq('type', type)
+    .eq('document_kind', kind);
   if (error) throw error;
   const maxNumber = (data || []).reduce((max, row) => {
-    const match = row.invoice_no?.match(new RegExp(`^${prefix}-(\\d+)$`));
+    const match = row.invoice_no?.match(/(\d+)$/);
     if (!match) return max;
     return Math.max(max, parseInt(match[1], 10));
   }, 0);
