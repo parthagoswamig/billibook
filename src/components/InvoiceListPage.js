@@ -11,6 +11,7 @@ import { DOCUMENT_KINDS, getInvoices, getParties, getProducts, getNextInvoiceNo,
 import { calcInvoiceTotals, formatCurrency, formatDate, exportToCSV, addDays } from '../lib/utils';
 import { supabase } from '../db';
 import QuickScanInvoice from './QuickScanInvoice';
+import SmartInvoiceScanModal from './SmartInvoiceScanModal';
 
 const INDIAN_STATES = [
   "Andaman and Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar",
@@ -41,6 +42,39 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
   const limit = 50;
   const [showModal, setShowModal] = useState(false);
   const [showScanModal, setShowScanModal] = useState(false);
+  const [showBillScanModal, setShowBillScanModal] = useState(false);
+
+  const handleBillScanComplete = async (scannedData) => {
+    try {
+      const currentParties = await getParties(tenantId);
+      setParties(currentParties || []);
+
+      const targetCustId = scannedData.customerId || currentParties?.[0]?.id || '';
+      const businessProf = await getProfile(tenantId);
+      const nextNo = await getNextInvoiceNo(tenantId, cfg.type, documentKind);
+      
+      setForm({
+        invoiceNo: nextNo,
+        customerId: targetCustId,
+        warehouseId: warehouses?.[0]?.id || '',
+        date: new Date().toISOString().split('T')[0],
+        dueDate: '',
+        notes: 'Auto-populated from AI Paper Bill Scan',
+        discount: 0,
+        roundOff: 0,
+        shippingCharges: 0,
+        stateOfSupply: (currentParties || []).find(p => p.id === targetCustId)?.state || businessProf?.state || '',
+        autoRoundOff: true,
+        paid: 0,
+        paymentMode: 'Cash',
+        taxMode: 'exclusive',
+        items: scannedData.items || [{ product_id: '', name: '', hsn: '', qty: 1, unit: 'Pcs', price: 100, discount: 0, gst: 18 }]
+      });
+      setShowModal(true);
+    } catch (err) {
+      console.error("Failed to populate invoice form:", err);
+    }
+  };
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -655,6 +689,16 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
           <>
             <input className="form-input search-input" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             <button className="secondary-button" type="button" onClick={() => exportToCSV(`${documentKind}.csv`, ['No', 'Party', 'Date', 'Total', 'Status'], filtered.map((i) => [i.invoice_no, i.customers?.name, i.date, i.total, i.status]))}>📥 CSV</button>
+            {canCreate('invoices') && (
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => setShowBillScanModal(true)}
+                style={{ background: '#EEF2FF', color: '#4F46E5', borderColor: '#C7D2FE', fontWeight: '700' }}
+              >
+                📷 AI Bill/Photo Scan
+              </button>
+            )}
             {canCreate('invoices') && documentKind === 'sale_invoice' && (
               <button
                 className="secondary-button"
@@ -1359,6 +1403,18 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
             </form>
           </div>
         </>
+      )}
+
+      {/* Smart AI Paper Bill Scan Modal */}
+      {showBillScanModal && (
+        <SmartInvoiceScanModal
+          isOpen={showBillScanModal}
+          onClose={() => setShowBillScanModal(false)}
+          tenantId={tenantId}
+          parties={parties}
+          documentKind={documentKind}
+          onScanComplete={handleBillScanComplete}
+        />
       )}
 
       {/* Scoped CSS Injector */}
