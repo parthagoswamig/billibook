@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Tesseract from 'tesseract.js';
+import * as pdfjsLib from 'pdfjs-dist';
 import { bulkImportProducts, getProductCategories, invalidateDashboardCache } from '../lib/db';
 import toast from 'react-hot-toast';
+
+// Configure pdfjs worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 export default function SmartProductScanModal({ isOpen, onClose, tenantId, onImportSuccess }) {
   const [file, setFile] = useState(null);
@@ -12,7 +16,6 @@ export default function SmartProductScanModal({ isOpen, onClose, tenantId, onImp
   const [extractedItems, setExtractedItems] = useState([]);
   const [importing, setImporting] = useState(false);
   
-  // New Enhanced States: Categories & Live Camera
   const [categories, setCategories] = useState([]);
   const [selectedCatId, setSelectedCatId] = useState('');
   const [cameraActive, setCameraActive] = useState(false);
@@ -27,7 +30,6 @@ export default function SmartProductScanModal({ isOpen, onClose, tenantId, onImp
     }
   }, [tenantId, isOpen]);
 
-  // Clean up camera stream when closing modal
   useEffect(() => {
     return () => {
       stopCamera();
@@ -48,7 +50,7 @@ export default function SmartProductScanModal({ isOpen, onClose, tenantId, onImp
       }
     } catch (err) {
       console.error("Camera access failed:", err);
-      toast.error('Unable to access camera. Please check permissions or upload a photo.');
+      toast.error('Unable to access camera. Please upload a photo or PDF.');
       setCameraActive(false);
     }
   };
@@ -84,7 +86,7 @@ export default function SmartProductScanModal({ isOpen, onClose, tenantId, onImp
   };
 
   const downloadSampleTemplate = () => {
-    const csvContent = "Name,HSN,SalePrice,PurchasePrice,Stock,Unit,GST\nDulux Velvet Touch 1L,3208,450,360,50,Ltr,18\nAsian Paints Tractor Emulsion 4L,3209,1200,980,20,Can,18\nPaint Brush 3 inch,9603,80,60,100,Pcs,12\n";
+    const csvContent = "Name,HSN,SalePrice,PurchasePrice,Stock,Unit,GST\nDulux Velvet Touch Premium 1L,3208,480,390,50,Ltr,18\nAsian Paints Royale Emulsion 4L,3209,1450,1180,25,Can,18\nPaint Roller Brush 4 inch,9603,120,85,100,Pcs,12\n";
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -116,34 +118,26 @@ export default function SmartProductScanModal({ isOpen, onClose, tenantId, onImp
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
     const items = [];
 
-    const ignoreWords = ['tax', 'invoice', 'subtotal', 'total', 'grand', 'gstin', 'phone', 'address', 'date', 'bill', 'sl', 'no', 'sl.', 'serial', 'particulars', 'hsn/sac', 'amount', 'qty', 'rate'];
-
     lines.forEach((line) => {
       const lower = line.toLowerCase();
-      if (ignoreWords.some(w => lower.startsWith(w) && lower.length < 25)) return;
-      if (lower.includes('tax invoice') || lower.includes('thank you') || lower.includes('authorized signatory')) return;
 
-      const numbers = line.match(/\d+(\.\d+)?/g) || [];
-      if (numbers.length === 0) return;
+      // Skip document header/footer boilerplate lines
+      if (lower.startsWith('official price list') || lower.startsWith('* all prices') || lower.startsWith('file:///') || lower.includes('maa tara paints')) return;
+      if (lower.startsWith('item name') || lower.includes('emulsion paints & enamel') || lower.includes('putty, primer & hardware')) return;
+      if (lower.includes('page') || lower.includes('total') || lower.includes('subtotal') || lower.includes('thank you')) return;
 
-      let productName = line
-        .replace(/₹|Rs\.|INR/gi, '')
-        .replace(/\b\d{4,8}\b/g, '')
-        .replace(/\b\d+(\.\d+)?\s*(pcs|ltr|kg|can|drum|bucket|box|set|pkt|roll|mtr|gm|ml|btl|nos|bag)\b/gi, '')
-        .replace(/\d+(\.\d+)?/g, '')
-        .replace(/[^\w\s\-\.\(\)]/gi, ' ')
-        .trim();
+      const numbers = line.match(/\d+(\.\d+)?/g);
+      if (!numbers || numbers.length === 0) return;
 
-      if (productName.length < 2) return;
-
+      // Extract HSN (4 to 8 digit number)
       let hsn = '';
-      let price = 0;
-      let qty = 1;
-      let unit = 'Pcs';
-
       const hsnMatch = line.match(/\b(\d{4,8})\b/);
-      if (hsnMatch) hsn = hsnMatch[1];
+      if (hsnMatch) {
+        hsn = hsnMatch[1];
+      }
 
+      // Extract Unit
+      let unit = 'Pcs';
       const unitMatch = line.match(/\b(pcs|ltr|kg|can|drum|bucket|box|set|pkt|roll|mtr|gm|ml|btl|nos|bag)\b/i);
       if (unitMatch) {
         const u = unitMatch[1].toUpperCase();
@@ -159,24 +153,47 @@ export default function SmartProductScanModal({ isOpen, onClose, tenantId, onImp
         else unit = 'Pcs';
       }
 
-      const decimalOrPrice = numbers.map(n => parseFloat(n)).filter(n => !isNaN(n));
-      if (decimalOrPrice.length >= 2) {
-        qty = decimalOrPrice[0] > 0 && decimalOrPrice[0] <= 1000 ? decimalOrPrice[0] : 1;
-        price = decimalOrPrice[decimalOrPrice.length - 1];
-      } else if (decimalOrPrice.length === 1) {
-        price = decimalOrPrice[0];
+      // Extract Price (last numeric token with optional decimals, e.g. 240.00 or 1850.00)
+      const priceMatch = line.match(/₹?\s*(\d+(\.\d+)?)\s*$/) || line.match(/(\d+(\.\d+)?)\s*$/);
+      let price = 0;
+      if (priceMatch) {
+        price = parseFloat(priceMatch[1]);
+      } else {
+        const parsedNums = numbers.map(n => parseFloat(n));
+        price = parsedNums[parsedNums.length - 1] || 0;
       }
 
-      items.push({
-        name: productName,
-        hsn: hsn,
-        sale_price: price || 0,
-        purchase_price: price ? Math.round(price * 0.8) : 0,
-        stock: qty || 1,
-        unit: unit,
-        gst: 18,
-        category_id: selectedCatId || null
-      });
+      // Isolate Product Name
+      let namePart = line
+        .replace(/₹|Rs\.|INR/gi, '')
+        .replace(/\b\d+(\.\d+)?\s*$/, '') // remove price at end
+        .replace(/\b\d{4,8}\b/g, '') // remove HSN
+        .replace(/\b(pcs|ltr|kg|can|drum|bucket|box|set|pkt|roll|mtr|gm|ml|btl|nos|bag)\b/gi, '') // remove unit
+        .replace(/[^\w\s\-\.\(\)]/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (namePart.length < 2) {
+        const firstNumIdx = line.search(/\d/);
+        if (firstNumIdx > 2) {
+          namePart = line.substring(0, firstNumIdx).trim();
+        } else {
+          namePart = line.trim();
+        }
+      }
+
+      if (namePart.length >= 2 && price > 0) {
+        items.push({
+          name: namePart,
+          hsn: hsn,
+          sale_price: price,
+          purchase_price: Math.round(price * 0.8),
+          stock: 10,
+          unit: unit,
+          gst: 18,
+          category_id: selectedCatId || null
+        });
+      }
     });
 
     return items;
@@ -189,34 +206,54 @@ export default function SmartProductScanModal({ isOpen, onClose, tenantId, onImp
     }
 
     setScanning(true);
-    setProgress(0);
-    setStatusText('Reading document text with AI OCR scanner...');
+    setProgress(10);
+    setStatusText('Analyzing document with AI Scanner Engine...');
 
     try {
-      const result = await Tesseract.recognize(file, 'eng', {
-        logger: (m) => {
-          if (m.status === 'recognizing text') {
-            setProgress(Math.round(m.progress * 100));
-            setStatusText(`Extracting text... ${Math.round(m.progress * 100)}%`);
-          } else {
-            setStatusText(m.status);
-          }
-        }
-      });
+      let extractedText = '';
 
-      const extractedText = result.data.text;
+      // Check if file is a PDF
+      if (file.name.endsWith('.pdf') || file.type === 'application/pdf') {
+        setStatusText('Reading PDF document text...');
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        
+        let pdfTextLines = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map(item => item.str).join(' ');
+          pdfTextLines.push(pageText);
+        }
+        extractedText = pdfTextLines.join('\n');
+        setProgress(100);
+      } else {
+        // Image OCR with Tesseract
+        const result = await Tesseract.recognize(file, 'eng', {
+          logger: (m) => {
+            if (m.status === 'recognizing text') {
+              setProgress(Math.round(m.progress * 100));
+              setStatusText(`Extracting text... ${Math.round(m.progress * 100)}%`);
+            } else {
+              setStatusText(m.status);
+            }
+          }
+        });
+        extractedText = result.data.text;
+      }
+
       const parsedProducts = parseTextToProducts(extractedText);
 
       if (parsedProducts.length === 0) {
-        toast.error('Could not detect clear product lines. You can add details manually in the review table.');
-        setExtractedItems([{ name: '', hsn: '', sale_price: '', purchase_price: '', stock: 1, unit: 'Pcs', gst: 18, category_id: selectedCatId || null }]);
+        toast.error('Could not detect clear product lines automatically. You can add items manually in the table below.');
+        setExtractedItems([{ name: '', hsn: '', sale_price: '', purchase_price: '', stock: 10, unit: 'Pcs', gst: 18, category_id: selectedCatId || null }]);
       } else {
         setExtractedItems(parsedProducts);
         toast.success(`🎉 Found ${parsedProducts.length} product(s) in document!`);
       }
     } catch (err) {
-      console.error("OCR Scan Failed:", err);
-      toast.error(err.message || 'Scan failed. Please upload a clear photo.');
+      console.error("Scanner Processing Failed:", err);
+      toast.error(err.message || 'Processing failed. Please check the file.');
     } finally {
       setScanning(false);
     }
@@ -233,7 +270,7 @@ export default function SmartProductScanModal({ isOpen, onClose, tenantId, onImp
   };
 
   const addItemRow = () => {
-    setExtractedItems([...extractedItems, { name: '', hsn: '', sale_price: '', purchase_price: '', stock: 1, unit: 'Pcs', gst: 18, category_id: selectedCatId || null }]);
+    setExtractedItems([...extractedItems, { name: '', hsn: '', sale_price: '', purchase_price: '', stock: 10, unit: 'Pcs', gst: 18, category_id: selectedCatId || null }]);
   };
 
   const handleImportToDatabase = async () => {
