@@ -156,6 +156,24 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
       }
     }
 
+    // Detect GST presence & GST rate in document
+    let hasGstMention = false;
+    let detectedGstRate = 0;
+    let taxMode = 'none'; // Default to Without GST (No Tax) unless GST is explicitly present in document!
+
+    const fullTextLower = text.toLowerCase();
+    if (fullTextLower.includes('gst') || fullTextLower.includes('tax invoice') || fullTextLower.includes('cgst') || fullTextLower.includes('sgst') || fullTextLower.includes('igst')) {
+      hasGstMention = true;
+      taxMode = fullTextLower.includes('inclusive') ? 'inclusive' : 'exclusive';
+
+      const gstMatch = text.match(/gst\s*@?\s*(\d{1,2})%/i) || text.match(/(\d{1,2})%\s*gst/i) || text.match(/\b(18|12|5|28)%\b/);
+      if (gstMatch) {
+        detectedGstRate = parseInt(gstMatch[1]);
+      } else {
+        detectedGstRate = 18;
+      }
+    }
+
     // 2. Extract Line Items (Strict Header/Footer Metadata Exclude Filter)
     lines.forEach((line) => {
       const lower = line.toLowerCase();
@@ -240,7 +258,7 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
           unit: unit,
           price: price,
           discount: 0,
-          gst: 18
+          gst: hasGstMention ? (detectedGstRate || 18) : 0
         });
       }
     });
@@ -252,6 +270,7 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
       customerAddress,
       invoiceNo,
       invoiceDate,
+      taxMode,
       items
     };
   };
@@ -359,7 +378,8 @@ export default function SmartInvoiceScanModal({ isOpen, onClose, tenantId, parti
         onScanComplete({
           customerId: targetCustomerId || '',
           customerName: parsedData.customerName || '',
-          items: parsedData.items.length > 0 ? parsedData.items : [{ name: 'Scanned Item', qty: 1, price: 100, gst: 18, unit: 'Pcs' }]
+          taxMode: parsedData.taxMode || 'none',
+          items: parsedData.items.length > 0 ? parsedData.items : [{ name: 'Scanned Item', qty: 1, price: 100, gst: 0, unit: 'Pcs' }]
         });
       }
 

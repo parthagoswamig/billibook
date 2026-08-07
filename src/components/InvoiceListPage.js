@@ -68,7 +68,7 @@ function InvoiceListPage({ documentKind = 'sale_invoice' }) {
         autoRoundOff: true,
         paid: 0,
         paymentMode: 'Cash',
-        taxMode: 'exclusive',
+        taxMode: scannedData.taxMode || 'none',
         items: scannedData.items || [{ product_id: '', name: '', hsn: '', qty: 1, unit: 'Pcs', price: 100, discount: 0, gst: 18 }]
       });
       setShowModal(true);
