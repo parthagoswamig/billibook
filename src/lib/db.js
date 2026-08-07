@@ -360,6 +360,37 @@ export async function redeemAppSumoCode(userId, code) {
   return updatedProfile;
 }
 
+// Activate Premium plan after a successful PayPal payment
+export async function activatePremiumByPayPal(paypalOrderId, paypalPayerId) {
+  const user = await verifyWritePermission('save', 'business_profile');
+  const tenantId = await getTenantId();
+
+  const { data: updatedProfile, error: profileError } = await supabase
+    .from('business_profile')
+    .update({
+      plan: 'premium',
+      paypal_order_id: paypalOrderId,
+      plan_activated_at: new Date().toISOString(),
+    })
+    .eq('id', tenantId)
+    .select()
+    .single();
+
+  if (profileError) throw profileError;
+
+  await supabase.from('audit_logs').insert([{
+    user_id: user.id,
+    business_id: tenantId,
+    action: 'paypal_payment',
+    entity_type: 'business_profile',
+    entity_id: tenantId,
+    details: { paypal_order_id: paypalOrderId, paypal_payer_id: paypalPayerId, plan: 'premium' }
+  }]);
+
+  invalidateDashboardCache(tenantId);
+  return updatedProfile;
+}
+
 export async function deleteBusiness(businessId) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
